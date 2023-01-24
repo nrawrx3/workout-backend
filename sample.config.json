@@ -1,0 +1,8 @@
+{
+  "sqlite": {
+    "file": "db/dev.sqlite3",
+    "read_only": false,
+    "in_memory": false
+  },
+  "migrations_path": "./db/migrations/"
+}

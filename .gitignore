@@ -1,0 +1,31 @@
+# Binaries for programs and plugins
+*.bin
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+
+# Test binary, built with `go test -c`
+*.test
+campaign-manager-service
+
+# Output folder
+*.out
+out/*
+
+# IDE config
+.idea
+.vscode/*
+tags
+
+# Local config file
+config.json
+
+# docker local data
+tmp/*
+
+#others
+.DS_Store
+
+db/*.sqlite3

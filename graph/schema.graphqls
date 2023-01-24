@@ -1,0 +1,57 @@
+# GraphQL schema
+
+#
+# https://gqlgen.com/getting-started/
+
+type User {
+  id: ID!
+  user_name: String!
+  email: String!
+}
+
+enum WorkoutKind {
+  PUSH_UPS
+  ONE_TWOS
+  BURPEES
+  KNEES_OVER_TOES
+}
+
+type Workout {
+  id: ID!
+  reps: Int!
+  rounds: Int!
+  duration_seconds: Int!
+  kind: WorkoutKind!
+  order: Int!
+  user_id: ID!
+}
+
+type Query {
+  user(id: ID!): User
+  workouts(user_id: ID!): [Workout!]!
+  user_by_email(email: String!): User
+}
+
+type Mutation {
+  create_user(user_name: String!, email: String!): ID
+
+  create_workout(
+    user_id: ID!
+    kind: WorkoutKind!
+    reps: Int!
+    duration_seconds: Int!
+    rounds: Int
+    order: Int!
+  ): ID
+
+  update_workout(
+    workout_id: ID!
+    kind: WorkoutKind!
+    reps: Int!
+    duration_seconds: Int!
+    rounds: Int!
+    order: Int!
+  ): ID
+
+  reorder_workouts(workoutIdAtRow: [ID!]!): [ID!]!
+}
