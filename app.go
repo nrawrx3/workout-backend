@@ -15,6 +15,7 @@ import (
 	"github.com/nrawrx3/workout-backend/config"
 	"github.com/nrawrx3/workout-backend/constants"
 	"github.com/nrawrx3/workout-backend/graph"
+	backend_handler "github.com/nrawrx3/workout-backend/handler"
 	"github.com/nrawrx3/workout-backend/store"
 	"gorm.io/gorm"
 
@@ -40,6 +41,8 @@ func NewApp(cfg *config.Config) (*App, error) {
 
 func (app *App) RunServer(cfg *config.Config) error {
 	log.Printf("Running server...")
+
+	userStore := store.NewUserStore(app.DB)
 
 	allowedOrigins := append([]string{}, cfg.Cors.AllowedOrigins...)
 	if cfg.Cors.AllowAll {
@@ -76,6 +79,11 @@ func (app *App) RunServer(cfg *config.Config) error {
 
 	http.Handle(constants.GqlQueryApiPath, corsObject.Handler(srv))
 	http.Handle(constants.GqlPlaygroundApiPath, playground.Handler("GraphQL playground", constants.GqlQueryApiPath))
+
+	// http.Handle("/login")
+
+	loginHandler := backend_handler.NewLoginHandler(userStore)
+	http.Handle("/login", http.HandlerFunc(loginHandler.Login))
 
 	log.Printf("connect to http://localhost:%d/%s for GraphQL playground", app.Cfg.Port, strings.TrimPrefix(constants.GqlPlaygroundApiPath, "/"))
 

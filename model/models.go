@@ -40,8 +40,9 @@ type BaseModel struct {
 // Object model corresponding to users table
 type User struct {
 	BaseModel
-	UserName string
-	Email    string
+	UserName     string
+	Email        string
+	PasswordHash string
 }
 
 // Object model corresponding to workouts table
@@ -54,4 +55,13 @@ type Workout struct {
 	Order           int `gorm:"column:relative_order"`
 	UserID          uint64
 	User            User
+}
+
+type UserLoginRequestBody struct {
+	Email    string `json:"email"`
+	Password string `json:"password"`
+}
+
+type AmILoggedInRequestBody struct {
+	Extra string `json:"extra"`
 }

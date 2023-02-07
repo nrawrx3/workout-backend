@@ -19,6 +19,8 @@ type Config struct {
 		AllowedOrigins []string `json:"allowed_origins"`
 		AllowAll       bool     `json:"allow_all"`
 	} `json:"cors"`
+	HmacSecretKey string `json:"hmac_secret_key"`
+	CookieName    string `json:"cookie_name"`
 }
 
 type SqliteConfig struct {
