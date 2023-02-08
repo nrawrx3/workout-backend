@@ -14,11 +14,18 @@ type Config struct {
 	Sqlite         SqliteConfig `json:"sqlite"`
 	MigrationsPath string       `json:"migrations_path"`
 	Port           int          `json:"port"`
+	TLSPort        int          `json:"tls_port"`
 
 	Cors struct {
 		AllowedOrigins []string `json:"allowed_origins"`
 		AllowAll       bool     `json:"allow_all"`
 	} `json:"cors"`
+	CookieSecretKey string `json:"cookie_secret_key"`
+	CookieName      string `json:"cookie_name"`
+	CookieDomain    string `json:"cookie_domain"`
+
+	// For testing purposes. In production, use a SSL reverse proxy instead.
+	UseSelfSignedTLS bool `json:"use_self_signed_tls"`
 }
 
 type SqliteConfig struct {

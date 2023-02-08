@@ -170,7 +170,7 @@ func (r *queryResolver) Workouts(ctx context.Context, userID string) ([]*model.W
 	}
 
 	var workouts []backend_model.Workout
-	err = r.DB.Where("user_id = ?", userUintID).Find(&workouts).Error
+	err = r.DB.WithContext(ctx).Where("user_id = ?", userUintID).Find(&workouts).Error
 	if err != nil {
 		return nil, err
 	}

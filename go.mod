@@ -11,6 +11,7 @@ require (
 	github.com/rubenv/sql-migrate v1.3.0
 	github.com/urfave/cli/v2 v2.24.1
 	github.com/vektah/gqlparser/v2 v2.5.1
+	golang.org/x/crypto v0.5.0
 	gorm.io/driver/sqlite v1.4.4
 	gorm.io/gorm v1.24.3
 )
