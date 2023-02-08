@@ -4,5 +4,20 @@
     "read_only": false,
     "in_memory": false
   },
-  "migrations_path": "./db/migrations/"
+  "migrations_path": "./db/migrations/",
+  "port": 8080,
+  "cors": {
+    "allowed_origins": [
+      "http://localhost:5173",
+      "http://localhost:9000",
+      "http://localhost:5180",
+      "https://localhost:5180"
+    ],
+    "allow_all": false
+  },
+  "cookie_secret_key": "[use aes-keygen to generate a hex key]",
+  "cookie_name": "WORKOUT",
+  "cookie_domain": "localhost",
+  "use_self_signed_tls": false,
+  "tls_port": 443
 }

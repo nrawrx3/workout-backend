@@ -1,6 +1,8 @@
 package model
 
 import (
+	"net/http"
+	"strconv"
 	"time"
 
 	"github.com/nrawrx3/workout-backend/constants"
@@ -65,3 +67,59 @@ type UserLoginRequestBody struct {
 type AmILoggedInRequestBody struct {
 	Extra string `json:"extra"`
 }
+
+type SessionCookieInfo struct {
+	CookieName string
+	Secure     bool
+	SecretKey  string
+	Domain     string
+	SameSite   http.SameSite
+	Expires    time.Time
+	HttpOnly   bool
+}
+
+type SessionCookieValue struct {
+	UserID string `json:"user_id"`
+}
+
+type WorkoutResponseJSON struct {
+	ID              string `json:"id"`
+	Kind            string `json:"kind"`
+	Reps            int    `json:"reps"`
+	DurationSeconds int    `json:"duration_seconds"`
+	Order           int    `json:"order"`
+	UserID          string `json:"user_id"`
+}
+
+func (resp *WorkoutResponseJSON) FromModel(w *Workout) {
+	resp.ID = strconv.FormatUint(w.ID, 10)
+	resp.Kind = string(w.Kind)
+	resp.Reps = w.Reps
+	resp.DurationSeconds = w.DurationSeconds
+	resp.Order = w.Order
+	resp.UserID = strconv.FormatUint(w.UserID, 10)
+}
+
+type WorkoutListResponseJSON struct {
+	Workouts []WorkoutResponseJSON `json:"workouts"`
+}
+
+type ResponseFormatJSON struct {
+	Data         interface{} `json:"data"`
+	ErrorCode    string      `json:"error_code"`
+	ErrorMessage string      `json:"error_message"`
+}
+
+var DefaultInternalServerErrorResponse = ResponseFormatJSON{
+	Data:         nil,
+	ErrorCode:    constants.ResponseErrCodeUnexpectedServerError,
+	ErrorMessage: "unexpected server side error",
+}
+
+var UserNotLoggedInErrorResponse = ResponseFormatJSON{
+	Data:         nil,
+	ErrorCode:    constants.ResponseErrCodeUserNotLoggedIn,
+	ErrorMessage: "user not logged in",
+}
+
+type UserIDContextKey struct{}

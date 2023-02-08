@@ -28,3 +28,12 @@ func (s *UserStore) GetUserWithEmail(email string) (model.User, error) {
 	}
 	return user, nil
 }
+
+func (s *UserStore) GetWorkoutsOfUser(userId uint64) ([]model.Workout, error) {
+	var workouts []model.Workout
+	err := s.DB.Where("user_id = ?", userId).Find(&workouts).Error
+	if err != nil {
+		return nil, err
+	}
+	return workouts, nil
+}

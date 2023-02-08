@@ -16,7 +16,10 @@ import (
 	"github.com/nrawrx3/workout-backend/constants"
 	"github.com/nrawrx3/workout-backend/graph"
 	backend_handler "github.com/nrawrx3/workout-backend/handler"
+	"github.com/nrawrx3/workout-backend/handler/middleware"
+	"github.com/nrawrx3/workout-backend/model"
 	"github.com/nrawrx3/workout-backend/store"
+	"github.com/nrawrx3/workout-backend/util"
 	"gorm.io/gorm"
 
 	"github.com/rs/cors"
@@ -42,8 +45,16 @@ func NewApp(cfg *config.Config) (*App, error) {
 func (app *App) RunServer(cfg *config.Config) error {
 	log.Printf("Running server...")
 
+	// Set up stores
 	userStore := store.NewUserStore(app.DB)
 
+	// Cipher we use for cookies
+	aesCipher, err := util.NewAESCipher(cfg.CookieSecretKey)
+	if err != nil {
+		return err
+	}
+
+	// Set up CORS middleware
 	allowedOrigins := append([]string{}, cfg.Cors.AllowedOrigins...)
 	if cfg.Cors.AllowAll {
 		allowedOrigins = append(allowedOrigins, "*")
@@ -54,8 +65,14 @@ func (app *App) RunServer(cfg *config.Config) error {
 	corsObject := cors.New(cors.Options{
 		AllowedOrigins:   allowedOrigins,
 		AllowCredentials: true,
+		AllowedHeaders:   []string{"Origin", "Accept", "Content-Type", "X-Requested-With"},
+		// AllowOriginFunc: func(origin string) bool {
+		// 	log.Printf("received origin: %s", origin)
+		// 	return origin == "http://localhost:5180"
+		// },
 	})
 
+	// Set up GraphQL handler
 	srv := handler.New(graph.NewExecutableSchema(graph.Config{
 		Resolvers: &graph.Resolver{
 			DB: app.DB,
@@ -80,14 +97,38 @@ func (app *App) RunServer(cfg *config.Config) error {
 	http.Handle(constants.GqlQueryApiPath, corsObject.Handler(srv))
 	http.Handle(constants.GqlPlaygroundApiPath, playground.Handler("GraphQL playground", constants.GqlQueryApiPath))
 
-	// http.Handle("/login")
+	cookieInfo := model.SessionCookieInfo{
+		CookieName: cfg.CookieName,
+		Secure:     true,
+		SecretKey:  cfg.CookieSecretKey,
+		SameSite:   http.SameSiteNoneMode,
+		Expires:    time.Now().Add(1 * time.Hour),
+		HttpOnly:   true,
+		Domain:     cfg.CookieDomain,
+	}
 
-	loginHandler := backend_handler.NewLoginHandler(userStore)
-	http.Handle("/login", http.HandlerFunc(loginHandler.Login))
+	sessionRedirHandler := middleware.NewSessionRedirectToLogin(cookieInfo, aesCipher)
 
-	log.Printf("connect to http://localhost:%d/%s for GraphQL playground", app.Cfg.Port, strings.TrimPrefix(constants.GqlPlaygroundApiPath, "/"))
+	loginHandler := backend_handler.NewLoginHandler(userStore, cookieInfo, aesCipher)
+	http.Handle("/login", corsObject.Handler(http.HandlerFunc(loginHandler.Login)))
 
-	log.Printf("call http://localhost:%d/%s with GraphQL queries", app.Cfg.Port, strings.TrimPrefix(constants.GqlQueryApiPath, "/"))
+	workoutsListHandler := backend_handler.NewWorkoutsListHandler(userStore)
+	http.Handle("/workouts",
+		corsObject.Handler(
+			sessionRedirHandler.Handler(
+				http.HandlerFunc(workoutsListHandler.HandleGetWorkoutsList))))
 
-	return http.ListenAndServe(fmt.Sprintf(":%d", app.Cfg.Port), nil)
+	if cfg.UseSelfSignedTLS {
+		log.Printf("connect to https://localhost:%d/%s for GraphQL playground", app.Cfg.TLSPort, strings.TrimPrefix(constants.GqlPlaygroundApiPath, "/"))
+
+		log.Printf("call https://localhost:%d/%s with GraphQL queries", app.Cfg.TLSPort, strings.TrimPrefix(constants.GqlQueryApiPath, "/"))
+
+		return http.ListenAndServeTLS(fmt.Sprintf(":%d", app.Cfg.TLSPort), "./dev-certs/server.crt", "dev-certs/server.key", nil)
+	} else {
+
+		log.Printf("connect to http://localhost:%d/%s for GraphQL playground", app.Cfg.Port, strings.TrimPrefix(constants.GqlPlaygroundApiPath, "/"))
+
+		log.Printf("call http://localhost:%d/%s with GraphQL queries", app.Cfg.Port, strings.TrimPrefix(constants.GqlQueryApiPath, "/"))
+		return http.ListenAndServe(fmt.Sprintf(":%d", app.Cfg.Port), nil)
+	}
 }

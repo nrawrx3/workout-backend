@@ -9,8 +9,8 @@ import (
 	"github.com/nrawrx3/workout-backend/constants"
 )
 
-func EncodeB64ThenWriteCookie(w http.ResponseWriter, cookie http.Cookie) error {
-	cookie.Value = base64.URLEncoding.EncodeToString([]byte(cookie.Value))
+func EncodeB64ThenWriteCookie(w http.ResponseWriter, cookie http.Cookie, value []byte) error {
+	cookie.Value = base64.URLEncoding.EncodeToString(value)
 
 	if len(cookie.String()) > 4096 {
 		return constants.ErrMaxSizeExceeded
@@ -37,8 +37,8 @@ func ReadCookieThenDecodeB64(r *http.Request, name string) ([]byte, error) {
 	return value, nil
 }
 
-func EncryptThenEncodeB64ThenWriteCookie(w http.ResponseWriter, cookie http.Cookie, aesCipher AESCipher) error {
-	value, err := aesCipher.Encrypt([]byte(cookie.Value))
+func EncryptThenEncodeB64ThenWriteCookie(w http.ResponseWriter, cookie http.Cookie, aesCipher *AESCipher, value []byte) error {
+	value, err := aesCipher.Encrypt(value)
 	if err != nil {
 		return fmt.Errorf("failed to encrypt cookie value: %w", err)
 	}
@@ -47,11 +47,10 @@ func EncryptThenEncodeB64ThenWriteCookie(w http.ResponseWriter, cookie http.Cook
 		return constants.ErrMaxSizeExceeded
 	}
 
-	cookie.Value = string(value)
-	return EncodeB64ThenWriteCookie(w, cookie)
+	return EncodeB64ThenWriteCookie(w, cookie, value)
 }
 
-func ReadCookieDecodeB64ThenDecrypt(r *http.Request, name string, aesCipher AESCipher) (string, error) {
+func ReadCookieDecodeB64ThenDecrypt(r *http.Request, name string, aesCipher *AESCipher) (string, error) {
 	encryptedBytes, err := ReadCookieThenDecodeB64(r, name)
 	if err != nil {
 		return "", fmt.Errorf("failed to decode base64 encoded cookie bytes: %w", err)

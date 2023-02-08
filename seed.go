@@ -2,17 +2,26 @@ package backend
 
 import (
 	"github.com/nrawrx3/workout-backend/model"
+	"github.com/nrawrx3/workout-backend/util"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
 )
 
 func SeedDatabase(db *gorm.DB) error {
-	user := model.User{
-		UserName: "jane",
-		Email:    "jane@example.com",
+	const password = "sigmamale"
+	passwordHash, err := util.HashPasswordBase64(password)
+
+	if err != nil {
+		return err
 	}
 
-	err := db.Create(&user).Error
+	user := model.User{
+		UserName:     "jane",
+		Email:        "jane@example.com",
+		PasswordHash: passwordHash,
+	}
+
+	err = db.Create(&user).Error
 	if err != nil {
 		return errors.WithMessage(err, "failed to create user")
 	}

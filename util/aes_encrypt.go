@@ -12,10 +12,13 @@ import (
 	"log"
 )
 
+// We share AEAD object created across multiple concurrent requests. The Encrypt
+// and Decrypt functions are thread-safe. Only need to generate unique nonce for
+// encrypting each individual message. https://github.com/golang/go/issues/41689
 type AESCipher struct {
-	key   []byte
-	block cipher.Block
-	gcm   cipher.AEAD
+	key []byte
+	// block cipher.Block
+	gcm cipher.AEAD
 }
 
 func NewAESCipher(hexKey string) (*AESCipher, error) {
@@ -41,9 +44,8 @@ func NewAESCipher(hexKey string) (*AESCipher, error) {
 	}
 
 	return &AESCipher{
-		key:   key,
-		block: block,
-		gcm:   gcm,
+		key: key,
+		gcm: gcm,
 	}, nil
 }
 

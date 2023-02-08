@@ -4,6 +4,7 @@ import (
 	"encoding/base64"
 	"fmt"
 	"log"
+	"net/http"
 	"strconv"
 
 	"golang.org/x/crypto/bcrypt"
@@ -33,4 +34,11 @@ func PasswordMatchesHash(password, base64PasswordHash string) (bool, error) {
 	}
 	err = bcrypt.CompareHashAndPassword(hash, []byte(password))
 	return err == nil, nil
+}
+
+func AddJsonContentHeader(w http.ResponseWriter, status int) {
+	if status != 0 {
+		w.WriteHeader(status)
+	}
+	w.Header().Add("Content-Type", "application/json")
 }
