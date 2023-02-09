@@ -22,7 +22,7 @@ func (s *UserStore) GetUserWithEmail(email string) (model.User, error) {
 	err := s.DB.Model(&user).Where("email = ?", []interface{}{email}).First(&user).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return user, constants.ErrNotFound
+			return user, constants.ErrCodeNotFound
 		}
 		return user, fmt.Errorf("failed to find user with email: %s: %w", email, err)
 	}

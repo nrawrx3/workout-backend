@@ -48,7 +48,7 @@ func (s *SessionRedirectToLogin) Handler(next http.Handler) http.HandlerFunc {
 		errorMessage := "cookie unset or expired"
 
 		if err != nil {
-			if !errors.Is(err, constants.ErrNotFound) {
+			if !errors.Is(err, constants.ErrCodeNotFound) {
 				errorMessage = "failed to decode cookie"
 			}
 			sendResponse(errorMessage)

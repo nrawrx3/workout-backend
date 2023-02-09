@@ -3,8 +3,9 @@ package constants
 import "errors"
 
 var (
-	ErrWrongEnumString = errors.New("err_wrong_enum_string")
-	ErrNotFound        = errors.New("err_not_found")
-	ErrMaxSizeExceeded = errors.New("err_max_size_exceeded")
-	ErrInvalidValue    = errors.New("err_invalid_value")
+	ErrCodeWrongEnumString = errors.New("err_wrong_enum_string")
+	ErrCodeNotFound        = errors.New("err_not_found")
+	ErrCodeMaxSizeExceeded = errors.New("err_max_size_exceeded")
+	ErrCodeInvalidValue    = errors.New("err_invalid_value")
+	ErrCodeUnknown         = errors.New("err_unknown")
 )

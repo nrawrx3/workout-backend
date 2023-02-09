@@ -25,6 +25,12 @@ func NewLoginHandler(userStore *store.UserStore, cookieInfo model.SessionCookieI
 }
 
 func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "POST" {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("expected POST method to API"))
+		return
+	}
+
 	// var reqBody model.UserLoginRequestBody
 	// err := json.NewDecoder(r.Body).Decode(&reqBody)
 	// if err != nil {
@@ -41,7 +47,7 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 	log.Printf("received /login with form-data: %+v", formData)
 
 	user, err := h.userStore.GetUserWithEmail(formData.Email)
-	if errors.Is(err, constants.ErrNotFound) {
+	if errors.Is(err, constants.ErrCodeNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte("No user with given email"))
 		return
@@ -91,4 +97,46 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusOK)
 	log.Printf("successfully logged in user: %d", user.ID)
+}
+
+func (h *LoginHandler) AmILoggedIn(w http.ResponseWriter, r *http.Request) {
+	if r.Method != "GET" {
+		w.WriteHeader(http.StatusBadRequest)
+		w.Write([]byte("expected a GET request, received different"))
+		return
+	}
+
+	w.WriteHeader(http.StatusOK)
+
+	response := model.ResponseFormatJSON{}
+
+	userId, err := util.ReadCookieDecodeB64ThenDecrypt(r, h.cookieInfo.CookieName, h.cipher)
+	if err != nil {
+		response.Data = model.AmILoggedInResponseJSON{
+			LoggedIn: false,
+		}
+
+		if errors.Is(err, constants.ErrCodeNotFound) {
+			response.ErrorCode = constants.ErrCodeNotFound.Error()
+		} else {
+			response.ErrorCode = constants.ErrCodeUnknown.Error()
+		}
+
+		err := json.NewEncoder(w).Encode(&response)
+		if err != nil {
+			w.WriteHeader(http.StatusInternalServerError)
+			log.Printf("failed to encode response json: %v", err)
+			return
+		}
+		return
+	}
+
+	log.Printf("AmILoggedIn called: User %s is logged in already", userId)
+	response.Data = model.AmILoggedInResponseJSON{LoggedIn: true}
+	err = json.NewEncoder(w).Encode(&response)
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		log.Printf("failed to encode response json: %v", err)
+		return
+	}
 }

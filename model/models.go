@@ -29,7 +29,7 @@ func CastWorkoutKind(str string) (WorkoutKind, error) {
 	case string(WorkoutOneTwos):
 		return WorkoutOneTwos, nil
 	}
-	return WorkoutPushups, constants.ErrWrongEnumString
+	return WorkoutPushups, constants.ErrCodeWrongEnumString
 }
 
 type BaseModel struct {
@@ -122,4 +122,10 @@ var UserNotLoggedInErrorResponse = ResponseFormatJSON{
 	ErrorMessage: "user not logged in",
 }
 
+// key type for the request context value containing the user id extracted from
+// cookie
 type UserIDContextKey struct{}
+
+type AmILoggedInResponseJSON struct {
+	LoggedIn bool `json:"logged_in"`
+}

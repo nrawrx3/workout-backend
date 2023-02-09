@@ -13,7 +13,7 @@ func EncodeB64ThenWriteCookie(w http.ResponseWriter, cookie http.Cookie, value [
 	cookie.Value = base64.URLEncoding.EncodeToString(value)
 
 	if len(cookie.String()) > 4096 {
-		return constants.ErrMaxSizeExceeded
+		return constants.ErrCodeMaxSizeExceeded
 	}
 
 	http.SetCookie(w, &cookie)
@@ -24,14 +24,14 @@ func ReadCookieThenDecodeB64(r *http.Request, name string) ([]byte, error) {
 	cookie, err := r.Cookie(name)
 	if err != nil {
 		if errors.Is(err, http.ErrNoCookie) {
-			return nil, constants.ErrNotFound
+			return nil, constants.ErrCodeNotFound
 		}
 		return nil, err
 	}
 
 	value, err := base64.URLEncoding.DecodeString(cookie.Value)
 	if err != nil {
-		return nil, constants.ErrInvalidValue
+		return nil, constants.ErrCodeInvalidValue
 	}
 
 	return value, nil
@@ -44,7 +44,7 @@ func EncryptThenEncodeB64ThenWriteCookie(w http.ResponseWriter, cookie http.Cook
 	}
 
 	if len(value) > 4096 {
-		return constants.ErrMaxSizeExceeded
+		return constants.ErrCodeMaxSizeExceeded
 	}
 
 	return EncodeB64ThenWriteCookie(w, cookie, value)
