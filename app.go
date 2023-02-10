@@ -107,7 +107,7 @@ func (app *App) RunServer(cfg *config.Config) error {
 		Domain:     cfg.CookieDomain,
 	}
 
-	sessionRedirHandler := middleware.NewSessionRedirectToLogin(cookieInfo, aesCipher)
+	sessionRedirHandler := middleware.NewSessionRedirectToLogin(userStore, cookieInfo, aesCipher)
 
 	loginHandler := backend_handler.NewLoginHandler(userStore, cookieInfo, aesCipher)
 	http.Handle("/login", corsObject.Handler(http.HandlerFunc(loginHandler.Login)))

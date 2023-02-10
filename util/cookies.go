@@ -2,11 +2,14 @@ package util
 
 import (
 	"encoding/base64"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/nrawrx3/workout-backend/constants"
+	"github.com/nrawrx3/workout-backend/model"
 )
 
 func EncodeB64ThenWriteCookie(w http.ResponseWriter, cookie http.Cookie, value []byte) error {
@@ -60,4 +63,23 @@ func ReadCookieDecodeB64ThenDecrypt(r *http.Request, name string, aesCipher *AES
 		return "", fmt.Errorf("failed to decrypt cookie value: %w", err)
 	}
 	return string(decryptedBytes), nil
+}
+
+func ExtractSessionIDFromCookie(r *http.Request, cookieName string, aesCipher *AESCipher) (uint64, error) {
+	cookieValueRaw, err := ReadCookieDecodeB64ThenDecrypt(r, cookieName, aesCipher)
+	if err != nil {
+		return 0, err
+	}
+
+	var cookieValue model.SessionCookieValue
+	err = json.NewDecoder(strings.NewReader(cookieValueRaw)).Decode(&cookieValue)
+	if err != nil {
+		return 0, err
+	}
+
+	sessionId, err := Uint64FromStringID(cookieValue.SessionID)
+	if err != nil {
+		return 0, err
+	}
+	return sessionId, nil
 }

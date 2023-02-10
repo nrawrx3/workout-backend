@@ -47,6 +47,14 @@ type User struct {
 	PasswordHash string
 }
 
+type UserSession struct {
+	BaseModel
+	ExpiresAt time.Time
+	UserAgent string
+	UserID    uint64
+	User      User
+}
+
 // Object model corresponding to workouts table
 type Workout struct {
 	BaseModel
@@ -66,20 +74,6 @@ type UserLoginRequestBody struct {
 
 type AmILoggedInRequestBody struct {
 	Extra string `json:"extra"`
-}
-
-type SessionCookieInfo struct {
-	CookieName string
-	Secure     bool
-	SecretKey  string
-	Domain     string
-	SameSite   http.SameSite
-	Expires    time.Time
-	HttpOnly   bool
-}
-
-type SessionCookieValue struct {
-	UserID string `json:"user_id"`
 }
 
 type WorkoutResponseJSON struct {
@@ -126,6 +120,23 @@ var UserNotLoggedInErrorResponse = ResponseFormatJSON{
 // cookie
 type UserIDContextKey struct{}
 
+// key type for the request context value containing the UserSession object
+type UserSessionContextKey struct{}
+
 type AmILoggedInResponseJSON struct {
 	LoggedIn bool `json:"logged_in"`
+}
+
+type SessionCookieInfo struct {
+	CookieName string
+	Secure     bool
+	SecretKey  string
+	Domain     string
+	SameSite   http.SameSite
+	Expires    time.Time
+	HttpOnly   bool
+}
+
+type SessionCookieValue struct {
+	SessionID string `json:"session_id"`
 }
