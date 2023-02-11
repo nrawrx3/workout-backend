@@ -7,9 +7,11 @@ import (
 	"log"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/nrawrx3/workout-backend/constants"
 	"github.com/nrawrx3/workout-backend/model"
+	"github.com/nrawrx3/workout-backend/store"
 	"github.com/nrawrx3/workout-backend/util"
 )
 
@@ -17,19 +19,20 @@ type SessionRedirectToLogin struct {
 	sessionInfo             model.SessionCookieInfo
 	cipher                  *util.AESCipher
 	RedirectOnInvalidCookie bool
+	userStore               *store.UserStore
 }
 
-func NewSessionRedirectToLogin(sessionInfo model.SessionCookieInfo, cipher *util.AESCipher) *SessionRedirectToLogin {
-	return &SessionRedirectToLogin{sessionInfo: sessionInfo, cipher: cipher}
+func NewSessionRedirectToLogin(userStore *store.UserStore, sessionInfo model.SessionCookieInfo, cipher *util.AESCipher) *SessionRedirectToLogin {
+	return &SessionRedirectToLogin{sessionInfo: sessionInfo, cipher: cipher, userStore: userStore}
 }
 
-func (s *SessionRedirectToLogin) Handler(next http.Handler) http.HandlerFunc {
+func (h *SessionRedirectToLogin) Handler(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Fetch cookie value
-		cookieValueRaw, err := util.ReadCookieDecodeB64ThenDecrypt(r, s.sessionInfo.CookieName, s.cipher)
+		cookieValueRaw, err := util.ReadCookieDecodeB64ThenDecrypt(r, h.sessionInfo.CookieName, h.cipher)
 
 		sendResponse := func(errorMessage string) {
-			if s.RedirectOnInvalidCookie {
+			if h.RedirectOnInvalidCookie {
 				log.Printf("redirecting request from %s to /login", r.RemoteAddr)
 				http.Redirect(w, r, constants.LoginPath, http.StatusSeeOther)
 			} else {
@@ -64,7 +67,7 @@ func (s *SessionRedirectToLogin) Handler(next http.Handler) http.HandlerFunc {
 			return
 		}
 
-		uintUserID, err := util.Uint64FromStringID(cookieValue.UserID)
+		uintSessionID, err := util.Uint64FromStringID(cookieValue.SessionID)
 		if err != nil {
 			errorMessage = "Invalid cookie data, failed to parse decrypted JSON"
 			log.Printf("Invalid cookie data, failed to parse JSON: %v", err)
@@ -72,7 +75,19 @@ func (s *SessionRedirectToLogin) Handler(next http.Handler) http.HandlerFunc {
 			return
 		}
 
-		ctx := context.WithValue(r.Context(), model.UserIDContextKey{}, uintUserID)
+		session, err := h.userStore.LoadSession(r.Context(), uintSessionID, time.Now())
+		if err != nil {
+			if errors.Is(err, constants.ErrCodeNotFound) {
+				util.AddJsonContentHeader(w, http.StatusNotFound)
+				json.NewEncoder(w).Encode(model.UserNotLoggedInErrorResponse)
+				return
+			}
+			w.WriteHeader(http.StatusInternalServerError)
+			json.NewEncoder(w).Encode(model.DefaultInternalServerErrorResponse)
+			return
+		}
+
+		ctx := context.WithValue(r.Context(), model.UserSessionContextKey{}, session)
 		next.ServeHTTP(w, r.WithContext(ctx))
 	}
 }

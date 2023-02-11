@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/http"
 	"strconv"
+	"time"
 
 	"github.com/nrawrx3/workout-backend/constants"
 	"github.com/nrawrx3/workout-backend/model"
@@ -24,21 +25,20 @@ func NewLoginHandler(userStore *store.UserStore, cookieInfo model.SessionCookieI
 	return &LoginHandler{userStore: userStore, cookieInfo: cookieInfo, cipher: cipher}
 }
 
+// Success response type: 200 - empty
+// Failure response type:
+//
+//	404 - reason-string
+//	422 - reson-string
+//	500 - model.DefaultInternalServerErrorResponse
 func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
+	<-time.After(2 * time.Second)
 	if r.Method != "POST" {
 		w.WriteHeader(http.StatusBadRequest)
 		w.Write([]byte("expected POST method to API"))
 		return
 	}
 
-	// var reqBody model.UserLoginRequestBody
-	// err := json.NewDecoder(r.Body).Decode(&reqBody)
-	// if err != nil {
-	// 	w.WriteHeader(http.StatusBadRequest)
-	// 	w.Write([]byte("Failed to parse request"))
-	// 	return
-	// }
-	// defer r.Body.Close()
 	formData := model.UserLoginRequestBody{
 		Email:    r.PostFormValue("email"),
 		Password: r.PostFormValue("password"),
@@ -46,7 +46,7 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	log.Printf("received /login with form-data: %+v", formData)
 
-	user, err := h.userStore.GetUserWithEmail(formData.Email)
+	user, err := h.userStore.GetUserWithEmail(r.Context(), formData.Email)
 	if errors.Is(err, constants.ErrCodeNotFound) {
 		w.WriteHeader(http.StatusNotFound)
 		w.Write([]byte("No user with given email"))
@@ -66,6 +66,14 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Create session
+	session, err := h.userStore.CreateSession(r.Context(), user.ID, time.Now(), h.cookieInfo.Expires, r.Header.Get("User-Agent"))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		json.NewEncoder(w).Encode(model.DefaultInternalServerErrorResponse)
+		return
+	}
+
 	cookie := http.Cookie{
 		Name: h.cookieInfo.CookieName,
 		// Value:    strconv.FormatUint(user.ID, 10),
@@ -77,7 +85,7 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 	}
 
 	cookieValue := model.SessionCookieValue{
-		UserID: strconv.FormatUint(user.ID, 10),
+		SessionID: strconv.FormatUint(session.ID, 10),
 	}
 	cookieValueBuf := bytes.NewBuffer(nil)
 	err = json.NewEncoder(cookieValueBuf).Encode(&cookieValue)
@@ -99,6 +107,7 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 	log.Printf("successfully logged in user: %d", user.ID)
 }
 
+// Success response type: 200 - model.AmILoggedInResponseJSON
 func (h *LoginHandler) AmILoggedIn(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		w.WriteHeader(http.StatusBadRequest)
@@ -110,29 +119,24 @@ func (h *LoginHandler) AmILoggedIn(w http.ResponseWriter, r *http.Request) {
 
 	response := model.ResponseFormatJSON{}
 
-	userId, err := util.ReadCookieDecodeB64ThenDecrypt(r, h.cookieInfo.CookieName, h.cipher)
+	sessionId, err := util.ExtractSessionIDFromCookie(r, h.cookieInfo.CookieName, h.cipher)
 	if err != nil {
-		response.Data = model.AmILoggedInResponseJSON{
-			LoggedIn: false,
-		}
-
+		log.Printf("could not extract cookie value: %v", err)
+		response.ErrorCode = constants.ResponseErrCodeUserNotLoggedIn
+	} else {
+		session, err := h.userStore.LoadSession(r.Context(), sessionId, time.Now())
 		if errors.Is(err, constants.ErrCodeNotFound) {
-			response.ErrorCode = constants.ErrCodeNotFound.Error()
-		} else {
-			response.ErrorCode = constants.ErrCodeUnknown.Error()
-		}
-
-		err := json.NewEncoder(w).Encode(&response)
-		if err != nil {
+			response.ErrorCode = constants.ResponseErrCodeUnexpectedServerError
+		} else if err != nil {
 			w.WriteHeader(http.StatusInternalServerError)
-			log.Printf("failed to encode response json: %v", err)
-			return
+			response.ErrorCode = constants.ResponseErrCodeUserNotLoggedIn
+		} else {
+			log.Printf("AmILoggedIn called: User %d is logged in already to session %d", session.UserID, sessionId)
+			response.Data = model.AmILoggedInResponseJSON{LoggedIn: true}
 		}
-		return
 	}
 
-	log.Printf("AmILoggedIn called: User %s is logged in already", userId)
-	response.Data = model.AmILoggedInResponseJSON{LoggedIn: true}
+	util.AddJsonContentHeader(w, 0)
 	err = json.NewEncoder(w).Encode(&response)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)

@@ -19,7 +19,7 @@ func NewWorkoutsListHandler(userStore *store.UserStore) *WorkoutsListHandler {
 }
 
 func (h *WorkoutsListHandler) HandleGetWorkoutsList(w http.ResponseWriter, r *http.Request) {
-	userId, ok := r.Context().Value(model.UserIDContextKey{}).(uint64)
+	session, ok := r.Context().Value(model.UserSessionContextKey{}).(model.UserSession)
 	if !ok {
 		log.Printf("No model.UserIDContextKey{} in context values map!")
 		w.WriteHeader(http.StatusInternalServerError)
@@ -27,9 +27,9 @@ func (h *WorkoutsListHandler) HandleGetWorkoutsList(w http.ResponseWriter, r *ht
 		return
 	}
 
-	workouts, err := h.userStore.GetWorkoutsOfUser(userId)
+	workouts, err := h.userStore.GetWorkoutsOfUser(r.Context(), session.UserID)
 	if err != nil {
-		log.Printf("failed to retrieve workout list of user: %d: %v", userId, err)
+		log.Printf("failed to retrieve workout list of user: %d: %v", session.UserID, err)
 		w.WriteHeader(http.StatusInternalServerError)
 		json.NewEncoder(w).Encode(&model.DefaultInternalServerErrorResponse)
 		return
@@ -46,7 +46,7 @@ func (h *WorkoutsListHandler) HandleGetWorkoutsList(w http.ResponseWriter, r *ht
 		workoutListJSON.Workouts = append(workoutListJSON.Workouts, workoutJSON)
 	}
 	resp.Data = workoutListJSON
-
+	util.AddJsonContentHeader(w, http.StatusOK)
 	err = json.NewEncoder(w).Encode(&resp)
 	if err != nil {
 		log.Print(err)
@@ -54,5 +54,4 @@ func (h *WorkoutsListHandler) HandleGetWorkoutsList(w http.ResponseWriter, r *ht
 		json.NewEncoder(w).Encode(&model.DefaultInternalServerErrorResponse)
 		return
 	}
-	util.AddJsonContentHeader(w, http.StatusOK)
 }

@@ -15,7 +15,7 @@ import (
 	"github.com/nrawrx3/workout-backend/config"
 	"github.com/nrawrx3/workout-backend/constants"
 	"github.com/nrawrx3/workout-backend/graph"
-	backend_handler "github.com/nrawrx3/workout-backend/handler"
+	bk_handler "github.com/nrawrx3/workout-backend/handler"
 	"github.com/nrawrx3/workout-backend/handler/middleware"
 	"github.com/nrawrx3/workout-backend/model"
 	"github.com/nrawrx3/workout-backend/store"
@@ -94,7 +94,6 @@ func (app *App) RunServer(cfg *config.Config) error {
 		Cache: lru.New(100),
 	})
 
-	http.Handle(constants.GqlQueryApiPath, corsObject.Handler(srv))
 	http.Handle(constants.GqlPlaygroundApiPath, playground.Handler("GraphQL playground", constants.GqlQueryApiPath))
 
 	cookieInfo := model.SessionCookieInfo{
@@ -107,12 +106,18 @@ func (app *App) RunServer(cfg *config.Config) error {
 		Domain:     cfg.CookieDomain,
 	}
 
-	sessionRedirHandler := middleware.NewSessionRedirectToLogin(cookieInfo, aesCipher)
+	sessionRedirHandler := middleware.NewSessionRedirectToLogin(userStore, cookieInfo, aesCipher)
 
-	loginHandler := backend_handler.NewLoginHandler(userStore, cookieInfo, aesCipher)
+	loginHandler := bk_handler.NewLoginHandler(userStore, cookieInfo, aesCipher)
 	http.Handle("/login", corsObject.Handler(http.HandlerFunc(loginHandler.Login)))
 
-	workoutsListHandler := backend_handler.NewWorkoutsListHandler(userStore)
+	http.Handle(constants.GqlQueryApiPath,
+		corsObject.Handler(sessionRedirHandler.Handler(srv)))
+
+	http.Handle(constants.AmILoggedInPath,
+		corsObject.Handler(http.HandlerFunc(loginHandler.AmILoggedIn)))
+
+	workoutsListHandler := bk_handler.NewWorkoutsListHandler(userStore)
 	http.Handle("/workouts",
 		corsObject.Handler(
 			sessionRedirHandler.Handler(
@@ -125,7 +130,6 @@ func (app *App) RunServer(cfg *config.Config) error {
 
 		return http.ListenAndServeTLS(fmt.Sprintf(":%d", app.Cfg.TLSPort), "./dev-certs/server.crt", "dev-certs/server.key", nil)
 	} else {
-
 		log.Printf("connect to http://localhost:%d/%s for GraphQL playground", app.Cfg.Port, strings.TrimPrefix(constants.GqlPlaygroundApiPath, "/"))
 
 		log.Printf("call http://localhost:%d/%s with GraphQL queries", app.Cfg.Port, strings.TrimPrefix(constants.GqlQueryApiPath, "/"))
