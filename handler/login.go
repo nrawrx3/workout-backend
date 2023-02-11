@@ -25,6 +25,12 @@ func NewLoginHandler(userStore *store.UserStore, cookieInfo model.SessionCookieI
 	return &LoginHandler{userStore: userStore, cookieInfo: cookieInfo, cipher: cipher}
 }
 
+// Success response type: 200 - empty
+// Failure response type:
+//
+//	404 - reason-string
+//	422 - reson-string
+//	500 - model.DefaultInternalServerErrorResponse
 func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 	<-time.After(2 * time.Second)
 	if r.Method != "POST" {
@@ -101,6 +107,7 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 	log.Printf("successfully logged in user: %d", user.ID)
 }
 
+// Success response type: 200 - model.AmILoggedInResponseJSON
 func (h *LoginHandler) AmILoggedIn(w http.ResponseWriter, r *http.Request) {
 	if r.Method != "GET" {
 		w.WriteHeader(http.StatusBadRequest)
