@@ -60,13 +60,10 @@ func (s *UserStore) LoadSession(ctx context.Context, sessionId uint64, timeNow t
 	return session, nil
 }
 
-// TODO: userAgent string breaks the sqlite query string for some reason.
 func (s *UserStore) CreateSession(ctx context.Context, userId uint64, timeNow, expiresAt time.Time, userAgent string) (model.UserSession, error) {
-	log.Printf("CreateSession called")
+	// log.Printf("CreateSession called")
 	session := model.UserSession{
 		UserID: userId,
-		// ExpiresAt: expiresAt,
-		// UserAgent: userAgent,
 	}
 
 	// Check if session already exists and not-expired. If yes, send that.
@@ -74,7 +71,7 @@ func (s *UserStore) CreateSession(ctx context.Context, userId uint64, timeNow, e
 	tx := s.DB.Begin()
 	defer tx.Rollback()
 
-	err := tx.WithContext(ctx).Preload("User").Where("user_id = ? and expires_at > ?", userId, timeNow).First(&session).Error
+	err := tx.WithContext(ctx).Preload("User").Where("user_id = ? and expires_at > ? and user_agent = ?", userId, timeNow, userAgent).First(&session).Error
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			log.Printf("query error: %v", err)
@@ -86,11 +83,11 @@ func (s *UserStore) CreateSession(ctx context.Context, userId uint64, timeNow, e
 		return session, nil
 	}
 
-	// err = tx.Model(model.UserSession{}).Delete("where user_agent = ?", userAgent).Error
-	// if err != nil {
-	// 	log.Printf("CreateSession failed to delete sessions for userId %d with same user agent: %v", userId, err)
-	// 	return model.UserSession{}, err
-	// }
+	err = tx.Model(model.UserSession{}).Where("user_agent = ?", userAgent).Error
+	if err != nil {
+		log.Printf("CreateSession failed to delete sessions for userId %d with same user agent: %v", userId, err)
+		return model.UserSession{}, err
+	}
 
 	// Create
 	session = model.UserSession{
