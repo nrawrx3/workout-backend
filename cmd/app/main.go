@@ -107,7 +107,27 @@ func main() {
 					if err != nil {
 						return err
 					}
-					app.RunServer(cfg)
+					app.Init(cfg)
+					return app.RunServer(cfg)
+				},
+			},
+			{
+				Name:  "routes",
+				Usage: "print routes",
+				Flags: []cli.Flag{&configFlag},
+				Action: func(c *cli.Context) error {
+					cfg := new(config.Config)
+					err := cfg.LoadFromJSONFile(cliFlags.configFile)
+					if err != nil {
+						return err
+					}
+
+					app, err := backend.NewApp(cfg)
+					if err != nil {
+						return err
+					}
+					app.Init(cfg)
+					app.RoutesSummary()
 					return nil
 				},
 			},

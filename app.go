@@ -4,6 +4,9 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
+	"reflect"
+	"runtime"
 	"strings"
 	"time"
 
@@ -12,6 +15,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler/lru"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
+	"github.com/gorilla/mux"
 	"github.com/nrawrx3/workout-backend/config"
 	"github.com/nrawrx3/workout-backend/constants"
 	"github.com/nrawrx3/workout-backend/graph"
@@ -26,8 +30,10 @@ import (
 )
 
 type App struct {
-	DB  *gorm.DB
-	Cfg *config.Config
+	DB         *gorm.DB
+	Cfg        *config.Config
+	Router     *mux.Router
+	HttpServer *http.Server
 }
 
 func NewApp(cfg *config.Config) (*App, error) {
@@ -42,11 +48,14 @@ func NewApp(cfg *config.Config) (*App, error) {
 	}, nil
 }
 
-func (app *App) RunServer(cfg *config.Config) error {
-	log.Printf("Running server...")
+func (app *App) Init(cfg *config.Config) error {
+	log.Printf("Init server...")
 
 	// Set up stores
 	userStore := store.NewUserStore(app.DB)
+
+	// Router
+	router := mux.NewRouter()
 
 	// Cipher we use for cookies
 	aesCipher, err := util.NewAESCipher(cfg.CookieSecretKey)
@@ -72,6 +81,20 @@ func (app *App) RunServer(cfg *config.Config) error {
 		// },
 	})
 
+	cookieInfo := model.SessionCookieInfo{
+		CookieName: cfg.CookieName,
+		Secure:     true,
+		SecretKey:  cfg.CookieSecretKey,
+		SameSite:   http.SameSiteNoneMode,
+		Expires:    time.Now().Add(1 * time.Hour),
+		HttpOnly:   true,
+		Domain:     cfg.CookieDomain,
+	}
+
+	sessionCheckMiddle := middleware.NewSessionChecker(userStore, cookieInfo, aesCipher)
+
+	loginHandler := bk_handler.NewLoginHandler(userStore, cookieInfo, aesCipher)
+
 	// Set up GraphQL handler
 	srv := handler.New(graph.NewExecutableSchema(graph.Config{
 		Resolvers: &graph.Resolver{
@@ -94,45 +117,80 @@ func (app *App) RunServer(cfg *config.Config) error {
 		Cache: lru.New(100),
 	})
 
-	http.Handle(constants.GqlPlaygroundApiPath, playground.Handler("GraphQL playground", constants.GqlQueryApiPath))
+	gqlSubRouter := router.PathPrefix(constants.GqlRootApiPrefix).Subrouter()
 
-	cookieInfo := model.SessionCookieInfo{
-		CookieName: cfg.CookieName,
-		Secure:     true,
-		SecretKey:  cfg.CookieSecretKey,
-		SameSite:   http.SameSiteNoneMode,
-		Expires:    time.Now().Add(1 * time.Hour),
-		HttpOnly:   true,
-		Domain:     cfg.CookieDomain,
-	}
+	gqlSubRouter.Path(constants.GqlPlaygroundApiPath).HandlerFunc(playground.Handler("GraphQL playground", constants.GqlQueryApiPath))
 
-	sessionRedirHandler := middleware.NewSessionRedirectToLogin(userStore, cookieInfo, aesCipher)
+	router.Path(constants.LoginPath).Handler(corsObject.Handler(http.HandlerFunc(loginHandler.Login)))
 
-	loginHandler := bk_handler.NewLoginHandler(userStore, cookieInfo, aesCipher)
-	http.Handle("/login", corsObject.Handler(http.HandlerFunc(loginHandler.Login)))
+	gqlSubRouter.Path(constants.GqlQueryApiPath).Handler(
+		corsObject.Handler(sessionCheckMiddle.Handler(srv)))
 
-	http.Handle(constants.GqlQueryApiPath,
-		corsObject.Handler(sessionRedirHandler.Handler(srv)))
-
-	http.Handle(constants.AmILoggedInPath,
+	router.Path(constants.AmILoggedInPath).Handler(
 		corsObject.Handler(http.HandlerFunc(loginHandler.AmILoggedIn)))
 
 	workoutsListHandler := bk_handler.NewWorkoutsListHandler(userStore)
-	http.Handle("/workouts",
-		corsObject.Handler(
-			sessionRedirHandler.Handler(
-				http.HandlerFunc(workoutsListHandler.HandleGetWorkoutsList))))
 
+	router.Path(constants.WorkoutsListPath).Methods("GET").Handler(corsObject.Handler(sessionCheckMiddle.Handler(
+		http.HandlerFunc(workoutsListHandler.HandleGetWorkoutsList))))
+
+	app.HttpServer = &http.Server{
+		Handler:      router,
+		Addr:         fmt.Sprintf("%s:%d", app.Cfg.Host, app.Cfg.TLSPort),
+		ReadTimeout:  10 * time.Second,
+		WriteTimeout: 10 * time.Second,
+		IdleTimeout:  1 * time.Minute,
+	}
+	app.Router = router
+	return nil
+}
+
+func (app *App) RunServer(cfg *config.Config) error {
 	if cfg.UseSelfSignedTLS {
 		log.Printf("connect to https://localhost:%d/%s for GraphQL playground", app.Cfg.TLSPort, strings.TrimPrefix(constants.GqlPlaygroundApiPath, "/"))
 
 		log.Printf("call https://localhost:%d/%s with GraphQL queries", app.Cfg.TLSPort, strings.TrimPrefix(constants.GqlQueryApiPath, "/"))
 
-		return http.ListenAndServeTLS(fmt.Sprintf(":%d", app.Cfg.TLSPort), "./dev-certs/server.crt", "dev-certs/server.key", nil)
+		return app.HttpServer.ListenAndServeTLS("./dev-certs/server.crt", "dev-certs/server.key")
 	} else {
 		log.Printf("connect to http://localhost:%d/%s for GraphQL playground", app.Cfg.Port, strings.TrimPrefix(constants.GqlPlaygroundApiPath, "/"))
 
 		log.Printf("call http://localhost:%d/%s with GraphQL queries", app.Cfg.Port, strings.TrimPrefix(constants.GqlQueryApiPath, "/"))
-		return http.ListenAndServe(fmt.Sprintf(":%d", app.Cfg.Port), nil)
+		return app.HttpServer.ListenAndServe()
+	}
+}
+
+func (app *App) RoutesSummary() {
+	logger := log.New(os.Stdout, "", 0)
+	err := app.Router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+		pathTemplate, err := route.GetPathTemplate()
+		if err == nil {
+			logger.Println(pathTemplate)
+		}
+		pathRegexp, err := route.GetPathRegexp()
+		if err == nil {
+			logger.Println("Path regexp:", pathRegexp)
+		}
+		// queriesTemplates, err := route.GetQueriesTemplates()
+		// if err == nil {
+		// 	logger.Println("Queries templates:", strings.Join(queriesTemplates, ","))
+		// }
+		// queriesRegexps, err := route.GetQueriesRegexp()
+		// if err == nil {
+		// 	logger.Println("Queries regexps:", strings.Join(queriesRegexps, ","))
+		// }
+		methods, err := route.GetMethods()
+		if err == nil {
+			logger.Println("Methods:", strings.Join(methods, ","))
+		}
+		if v := reflect.ValueOf(route.GetHandler()); v.Kind() == reflect.Func {
+			logger.Println("HandlerFn: ", runtime.FuncForPC(v.Pointer()).Name())
+		}
+		logger.Println()
+		return nil
+	})
+
+	if err != nil {
+		logger.Println(err)
 	}
 }

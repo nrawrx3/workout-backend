@@ -13,6 +13,7 @@ import (
 type Config struct {
 	Sqlite         SqliteConfig `json:"sqlite"`
 	MigrationsPath string       `json:"migrations_path"`
+	Host           string       `json:"host"`
 	Port           int          `json:"port"`
 	TLSPort        int          `json:"tls_port"`
 

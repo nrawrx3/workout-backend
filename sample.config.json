@@ -5,6 +5,7 @@
     "in_memory": false
   },
   "migrations_path": "./db/migrations/",
+  "host": "",
   "port": 8080,
   "cors": {
     "allowed_origins": [

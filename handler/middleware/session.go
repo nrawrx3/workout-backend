@@ -15,18 +15,18 @@ import (
 	"github.com/nrawrx3/workout-backend/util"
 )
 
-type SessionRedirectToLogin struct {
+type SessionChecker struct {
 	sessionInfo             model.SessionCookieInfo
 	cipher                  *util.AESCipher
 	RedirectOnInvalidCookie bool
 	userStore               *store.UserStore
 }
 
-func NewSessionRedirectToLogin(userStore *store.UserStore, sessionInfo model.SessionCookieInfo, cipher *util.AESCipher) *SessionRedirectToLogin {
-	return &SessionRedirectToLogin{sessionInfo: sessionInfo, cipher: cipher, userStore: userStore}
+func NewSessionChecker(userStore *store.UserStore, sessionInfo model.SessionCookieInfo, cipher *util.AESCipher) *SessionChecker {
+	return &SessionChecker{sessionInfo: sessionInfo, cipher: cipher, userStore: userStore}
 }
 
-func (h *SessionRedirectToLogin) Handler(next http.Handler) http.HandlerFunc {
+func (h *SessionChecker) Handler(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Fetch cookie value
 		cookieValueRaw, err := util.ReadCookieDecodeB64ThenDecrypt(r, h.sessionInfo.CookieName, h.cipher)

@@ -9,6 +9,9 @@ app:
 	mkdir -p ./out
 	go build -o ${APP_EXECUTABLE} ./cmd/app/... 
 
+routes:
+	${APP_EXECUTABLE} routes --config config.json
+
 hash-password:
 	mkdir -p ./out
 	go build -o ./out/hash-password ./cmd/hash-password/...
