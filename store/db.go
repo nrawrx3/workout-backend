@@ -20,7 +20,7 @@ func OpenSqliteDatabase(sqliteDSN string) (*sql.DB, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to open database at %s", sqliteDSN)
 	}
-	log.Info().Str("store", "opened database").Str("dsn", sqliteDSN).Send()
+	log.Info().Str("dsn", sqliteDSN).Msg("opened database with sql.Open")
 	return db, nil
 }
 
@@ -31,7 +31,7 @@ func OpenGorm(sqliteDSN string) (*gorm.DB, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create gorm db object")
 	}
-	log.Info().Str("store", "opened database with gorm.Open").Str("dsn", sqliteDSN).Send()
+	log.Info().Str("dsn", sqliteDSN).Msg("opened database with gorm.Open")
 	return gormDB, nil
 }
 

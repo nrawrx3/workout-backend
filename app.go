@@ -55,17 +55,19 @@ func initGlobalLogger(cfg *config.Config) {
 	if cfg.Logger.Pretty {
 		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
 	}
+	zerolog.TimestampFieldName = cfg.Logger.TimestampFormat
+	zerolog.TimeFieldFormat = util.ISO8601LayoutWithoutT
 }
 
 func (app *App) Init(cfg *config.Config) error {
-
-	log.Info().Msg("Init server...")
+	log.Info().Msg("Init server")
 
 	// Set up stores
 	userStore := store.NewUserStore(app.DB)
 
 	// Router
 	router := mux.NewRouter()
+	router.Use(middleware.Logger)
 
 	// Cipher we use for cookies
 	aesCipher, err := util.NewAESCipher(cfg.CookieSecretKey)
@@ -156,8 +158,7 @@ func (app *App) Init(cfg *config.Config) error {
 func (app *App) RunServer(cfg *config.Config) error {
 	if cfg.UseSelfSignedTLS {
 		listenAddr := fmt.Sprintf("%s:%d", app.Cfg.Host, app.Cfg.TLSPort)
-
-		log.Info().Dict("starting server", zerolog.Dict().Str("listening-on", listenAddr))
+		log.Info().Str("listenAddr", listenAddr).Msg("starting http server")
 
 		app.HttpServer = &http.Server{
 			Handler:      app.Router,
@@ -173,8 +174,7 @@ func (app *App) RunServer(cfg *config.Config) error {
 		return app.HttpServer.ListenAndServeTLS("./dev-certs/server.crt", "dev-certs/server.key")
 	} else {
 		listenAddr := fmt.Sprintf("%s:%d", app.Cfg.Host, app.Cfg.Port)
-
-		log.Info().Dict("starting server", zerolog.Dict().Str("listening-on", listenAddr)).Msg("")
+		log.Info().Str("listenAddr", listenAddr).Msg("starting http server")
 
 		app.HttpServer = &http.Server{
 			Handler:      app.Router,

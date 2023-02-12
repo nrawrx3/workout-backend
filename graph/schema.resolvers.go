@@ -10,7 +10,6 @@ import (
 	"fmt"
 	"os"
 	"strconv"
-	"time"
 
 	"github.com/nrawrx3/workout-backend/graph/model"
 	backend_model "github.com/nrawrx3/workout-backend/model"
@@ -187,8 +186,8 @@ func (r *queryResolver) Workouts(ctx context.Context, userID string) ([]*model.W
 		})
 	}
 
-	log.Debug().Int("duration(sec)", 3).Str("gql_resolver", "sleeping before sending response").Str("query", "workouts").Msg("simulating delay")
-	<-time.After(3 * time.Second)
+	// log.Debug().Int("duration(sec)", 3).Str("gql_resolver", "sleeping before sending response").Str("query", "workouts").Msg("simulating delay")
+	// <-time.After(3 * time.Second)
 
 	log.Debug().Str("gql_resolver", "sending workouts result").Str("query", "workouts")
 

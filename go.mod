@@ -4,6 +4,7 @@ go 1.19
 
 require (
 	github.com/99designs/gqlgen v0.17.24
+	github.com/felixge/httpsnoop v1.0.3
 	github.com/golobby/config/v3 v3.4.2
 	github.com/gorilla/mux v1.8.0
 	github.com/mattn/go-sqlite3 v1.14.16

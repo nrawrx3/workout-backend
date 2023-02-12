@@ -9,7 +9,11 @@ import (
 
 const Day = 24 * time.Hour
 
+// ISO8601 upto seconds resolution
 const ISO8601Layout = "2006-01-02T15:04:05-07:00"
+
+// ISO8601 upto seconds resolution and without T symbol
+const ISO8601LayoutWithoutT = "2006-01-02 15:04:05-07:00"
 
 func MaxTime(t1 time.Time, t2 time.Time) time.Time {
 	if t1.Before(t2) {
@@ -100,6 +104,7 @@ func TruncateToMonday(day time.Time) time.Time {
 	dayOfWeek := day.Weekday()
 
 	if dayOfWeek == time.Sunday {
+
 		dayOfWeek = 7
 	}
 

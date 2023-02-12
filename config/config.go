@@ -13,7 +13,8 @@ import (
 type Config struct {
 	Sqlite SqliteConfig `json:"sqlite"`
 	Logger struct {
-		Pretty bool `json:"pretty"`
+		Pretty          bool   `json:"pretty"`
+		TimestampFormat string `json:"timestamp_format"` // Should be a valid time package timestamp format
 	} `json:"logger"`
 
 	MigrationsPath string `json:"migrations_path"`
@@ -31,8 +32,7 @@ type Config struct {
 
 	// For testing purposes. In production, use a SSL reverse proxy instead.
 	UseSelfSignedTLS bool `json:"use_self_signed_tls"`
-
-	UsePrettyLogger bool `json:"use_pretty_logger"`
+	UsePrettyLogger  bool `json:"use_pretty_logger"`
 }
 
 type SqliteConfig struct {
