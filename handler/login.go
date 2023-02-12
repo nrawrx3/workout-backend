@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/json"
 	"errors"
-	"log"
 	"net/http"
 	"strconv"
 	"time"
@@ -13,6 +12,8 @@ import (
 	"github.com/nrawrx3/workout-backend/model"
 	"github.com/nrawrx3/workout-backend/store"
 	"github.com/nrawrx3/workout-backend/util"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 type LoginHandler struct {
@@ -44,8 +45,6 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 		Password: r.PostFormValue("password"),
 	}
 
-	log.Printf("received /login with form-data: %+v", formData)
-
 	user, err := h.userStore.GetUserWithEmail(r.Context(), formData.Email)
 	if errors.Is(err, constants.ErrCodeNotFound) {
 		w.WriteHeader(http.StatusNotFound)
@@ -56,11 +55,13 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 	passwordMatches, err := util.PasswordMatchesHash(formData.Password, user.PasswordHash)
 
 	if err != nil {
+		log.Debug().Str("/login", "password does not match, non-trivial error").Err(err).Send()
 		w.WriteHeader(http.StatusUnprocessableEntity)
 		w.Write([]byte("failed to match password due to error"))
 		return
 	}
 	if !passwordMatches {
+		log.Debug().Str("/login", "password does not match")
 		w.WriteHeader(http.StatusUnauthorized)
 		w.Write([]byte("Wrong password"))
 		return
@@ -90,7 +91,7 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 	cookieValueBuf := bytes.NewBuffer(nil)
 	err = json.NewEncoder(cookieValueBuf).Encode(&cookieValue)
 	if err != nil {
-		log.Printf("failed to JSON-encode cookie value: %v", err)
+		log.Error().Str("/login", "failed to JSON encode cookie value").Err(err).Send()
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("failed to encode cookie :|"))
 		return
@@ -98,13 +99,13 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 
 	err = util.EncryptThenEncodeB64ThenWriteCookie(w, cookie, h.cipher, cookieValueBuf.Bytes())
 	if err != nil {
-		log.Print(err)
+		log.Error().Str("/login", "failed to write cookie").Err(err).Send()
 		w.WriteHeader(http.StatusInternalServerError)
 		w.Write([]byte("fauled to encrypt cookie :|"))
 		return
 	}
 	w.WriteHeader(http.StatusOK)
-	log.Printf("successfully logged in user: %d", user.ID)
+	log.Info().Str("/login", "logged in user").Uint64("userID", user.ID).Send()
 }
 
 // Success response type: 200 - model.AmILoggedInResponseJSON
@@ -121,7 +122,7 @@ func (h *LoginHandler) AmILoggedIn(w http.ResponseWriter, r *http.Request) {
 
 	sessionId, err := util.ExtractSessionIDFromCookie(r, h.cookieInfo.CookieName, h.cipher)
 	if err != nil {
-		log.Printf("could not extract cookie value: %v", err)
+		log.Info().Err(err).Str("/am-i-logged-in", "could not extract sessionID from cookie").Send()
 		response.ErrorCode = constants.ResponseErrCodeUserNotLoggedIn
 	} else {
 		session, err := h.userStore.LoadSession(r.Context(), sessionId, time.Now())
@@ -131,7 +132,7 @@ func (h *LoginHandler) AmILoggedIn(w http.ResponseWriter, r *http.Request) {
 			w.WriteHeader(http.StatusInternalServerError)
 			response.ErrorCode = constants.ResponseErrCodeUserNotLoggedIn
 		} else {
-			log.Printf("AmILoggedIn called: User %d is logged in already to session %d", session.UserID, sessionId)
+			log.Info().Str("/am-i-logged-in", "user is logged in").Dict("session", zerolog.Dict().Uint64("sessionID", sessionId).Uint64("userID", session.UserID)).Send()
 			response.Data = model.AmILoggedInResponseJSON{LoggedIn: true}
 		}
 	}
@@ -140,7 +141,7 @@ func (h *LoginHandler) AmILoggedIn(w http.ResponseWriter, r *http.Request) {
 	err = json.NewEncoder(w).Encode(&response)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		log.Printf("failed to encode response json: %v", err)
+		log.Info().Str("/am-i-logged-in", "failed to encode response json").Err(err).Send()
 		return
 	}
 }

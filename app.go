@@ -2,8 +2,10 @@ package backend
 
 import (
 	"fmt"
-	"log"
 	"net/http"
+	"os"
+	"reflect"
+	"runtime"
 	"strings"
 	"time"
 
@@ -12,6 +14,7 @@ import (
 	"github.com/99designs/gqlgen/graphql/handler/lru"
 	"github.com/99designs/gqlgen/graphql/handler/transport"
 	"github.com/99designs/gqlgen/graphql/playground"
+	"github.com/gorilla/mux"
 	"github.com/nrawrx3/workout-backend/config"
 	"github.com/nrawrx3/workout-backend/constants"
 	"github.com/nrawrx3/workout-backend/graph"
@@ -23,14 +26,19 @@ import (
 	"gorm.io/gorm"
 
 	"github.com/rs/cors"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 type App struct {
-	DB  *gorm.DB
-	Cfg *config.Config
+	DB         *gorm.DB
+	Cfg        *config.Config
+	Router     *mux.Router
+	HttpServer *http.Server
 }
 
 func NewApp(cfg *config.Config) (*App, error) {
+	initGlobalLogger(cfg)
 	gormDB, err := store.OpenGorm(cfg.Sqlite.SqliteDSN())
 	if err != nil {
 		return nil, err
@@ -42,11 +50,24 @@ func NewApp(cfg *config.Config) (*App, error) {
 	}, nil
 }
 
-func (app *App) RunServer(cfg *config.Config) error {
-	log.Printf("Running server...")
+func initGlobalLogger(cfg *config.Config) {
+	zerolog.SetGlobalLevel(zerolog.DebugLevel)
+	if cfg.Logger.Pretty {
+		log.Logger = log.Output(zerolog.ConsoleWriter{Out: os.Stdout})
+	}
+	zerolog.TimestampFieldName = cfg.Logger.TimestampFormat
+	zerolog.TimeFieldFormat = util.ISO8601LayoutWithoutT
+}
+
+func (app *App) Init(cfg *config.Config) error {
+	log.Info().Msg("Init server")
 
 	// Set up stores
 	userStore := store.NewUserStore(app.DB)
+
+	// Router
+	router := mux.NewRouter()
+	router.Use(middleware.Logger)
 
 	// Cipher we use for cookies
 	aesCipher, err := util.NewAESCipher(cfg.CookieSecretKey)
@@ -60,7 +81,7 @@ func (app *App) RunServer(cfg *config.Config) error {
 		allowedOrigins = append(allowedOrigins, "*")
 	}
 
-	log.Printf("cors allowed-origins: %+v", allowedOrigins)
+	log.Debug().Dict("creating cors-middleware", zerolog.Dict().Str("cors-allowed-origins", strings.Join(allowedOrigins, ",")))
 
 	corsObject := cors.New(cors.Options{
 		AllowedOrigins:   allowedOrigins,
@@ -71,6 +92,20 @@ func (app *App) RunServer(cfg *config.Config) error {
 		// 	return origin == "http://localhost:5180"
 		// },
 	})
+
+	cookieInfo := model.SessionCookieInfo{
+		CookieName: cfg.CookieName,
+		Secure:     true,
+		SecretKey:  cfg.CookieSecretKey,
+		SameSite:   http.SameSiteNoneMode,
+		Expires:    time.Now().Add(1 * time.Hour),
+		HttpOnly:   true,
+		Domain:     cfg.CookieDomain,
+	}
+
+	sessionCheckMiddle := middleware.NewSessionChecker(userStore, cookieInfo, aesCipher)
+
+	loginHandler := bk_handler.NewLoginHandler(userStore, cookieInfo, aesCipher)
 
 	// Set up GraphQL handler
 	srv := handler.New(graph.NewExecutableSchema(graph.Config{
@@ -94,45 +129,101 @@ func (app *App) RunServer(cfg *config.Config) error {
 		Cache: lru.New(100),
 	})
 
-	http.Handle(constants.GqlPlaygroundApiPath, playground.Handler("GraphQL playground", constants.GqlQueryApiPath))
+	gqlSubRouter := router.PathPrefix(constants.GqlRootApiPrefix).Subrouter()
 
-	cookieInfo := model.SessionCookieInfo{
-		CookieName: cfg.CookieName,
-		Secure:     true,
-		SecretKey:  cfg.CookieSecretKey,
-		SameSite:   http.SameSiteNoneMode,
-		Expires:    time.Now().Add(1 * time.Hour),
-		HttpOnly:   true,
-		Domain:     cfg.CookieDomain,
-	}
+	gqlSubRouter.Path(constants.GqlPlaygroundApiPath).HandlerFunc(playground.Handler("GraphQL playground", constants.GqlQueryApiPath))
 
-	sessionRedirHandler := middleware.NewSessionRedirectToLogin(userStore, cookieInfo, aesCipher)
+	router.Path(constants.LoginPath).Handler(corsObject.Handler(http.HandlerFunc(loginHandler.Login)))
 
-	loginHandler := bk_handler.NewLoginHandler(userStore, cookieInfo, aesCipher)
-	http.Handle("/login", corsObject.Handler(http.HandlerFunc(loginHandler.Login)))
+	gqlSubRouter.Path(constants.GqlQueryApiPath).Handler(
+		corsObject.Handler(sessionCheckMiddle.Handler(srv)))
 
-	http.Handle(constants.GqlQueryApiPath,
-		corsObject.Handler(sessionRedirHandler.Handler(srv)))
-
-	http.Handle(constants.AmILoggedInPath,
+	router.Path(constants.AmILoggedInPath).Handler(
 		corsObject.Handler(http.HandlerFunc(loginHandler.AmILoggedIn)))
 
 	workoutsListHandler := bk_handler.NewWorkoutsListHandler(userStore)
-	http.Handle("/workouts",
-		corsObject.Handler(
-			sessionRedirHandler.Handler(
-				http.HandlerFunc(workoutsListHandler.HandleGetWorkoutsList))))
 
+	router.Path(constants.WorkoutsListPath).Methods("GET").Handler(corsObject.Handler(sessionCheckMiddle.Handler(
+		http.HandlerFunc(workoutsListHandler.HandleGetWorkoutsList))))
+
+	host := app.Cfg.Host
+	if host == "" {
+		host = "localhost"
+	}
+
+	app.Router = router
+	return nil
+}
+
+func (app *App) RunServer(cfg *config.Config) error {
 	if cfg.UseSelfSignedTLS {
-		log.Printf("connect to https://localhost:%d/%s for GraphQL playground", app.Cfg.TLSPort, strings.TrimPrefix(constants.GqlPlaygroundApiPath, "/"))
+		listenAddr := fmt.Sprintf("%s:%d", app.Cfg.Host, app.Cfg.TLSPort)
+		log.Info().Str("listenAddr", listenAddr).Msg("starting http server")
 
-		log.Printf("call https://localhost:%d/%s with GraphQL queries", app.Cfg.TLSPort, strings.TrimPrefix(constants.GqlQueryApiPath, "/"))
+		app.HttpServer = &http.Server{
+			Handler:      app.Router,
+			Addr:         listenAddr,
+			ReadTimeout:  10 * time.Second,
+			WriteTimeout: 10 * time.Second,
+			IdleTimeout:  1 * time.Minute,
+		}
+		log.Info().Dict("gql-urls", zerolog.Dict().
+			Str("Playground", fmt.Sprintf("https://localhost:%d/gql/playground", app.Cfg.TLSPort)).
+			Str("Query", fmt.Sprintf("https://localhost:%d/gql/query", app.Cfg.TLSPort))).Msg("")
 
-		return http.ListenAndServeTLS(fmt.Sprintf(":%d", app.Cfg.TLSPort), "./dev-certs/server.crt", "dev-certs/server.key", nil)
+		return app.HttpServer.ListenAndServeTLS("./dev-certs/server.crt", "dev-certs/server.key")
 	} else {
-		log.Printf("connect to http://localhost:%d/%s for GraphQL playground", app.Cfg.Port, strings.TrimPrefix(constants.GqlPlaygroundApiPath, "/"))
+		listenAddr := fmt.Sprintf("%s:%d", app.Cfg.Host, app.Cfg.Port)
+		log.Info().Str("listenAddr", listenAddr).Msg("starting http server")
 
-		log.Printf("call http://localhost:%d/%s with GraphQL queries", app.Cfg.Port, strings.TrimPrefix(constants.GqlQueryApiPath, "/"))
-		return http.ListenAndServe(fmt.Sprintf(":%d", app.Cfg.Port), nil)
+		app.HttpServer = &http.Server{
+			Handler:      app.Router,
+			Addr:         listenAddr,
+			ReadTimeout:  10 * time.Second,
+			WriteTimeout: 10 * time.Second,
+			IdleTimeout:  1 * time.Minute,
+		}
+
+		log.Info().Dict("gql-urls", zerolog.Dict().
+			Str("Playground", fmt.Sprintf("https://localhost:%d/gql/playground", app.Cfg.Port)).
+			Str("Query", fmt.Sprintf("https://localhost:%d/gql/query", app.Cfg.Port)))
+		return app.HttpServer.ListenAndServe()
+	}
+}
+
+func (app *App) RoutesSummary() {
+	var sb strings.Builder
+
+	err := app.Router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+		pathTemplate, err := route.GetPathTemplate()
+		if err == nil {
+			sb.WriteString(pathTemplate)
+			sb.WriteString("\n")
+		}
+		pathRegexp, err := route.GetPathRegexp()
+		if err == nil {
+			sb.WriteString("Path regexp:")
+			sb.WriteString(pathRegexp)
+			sb.WriteString("\n")
+		}
+		methods, err := route.GetMethods()
+		if err == nil {
+			sb.WriteString("Methods:")
+			sb.WriteString(strings.Join(methods, ","))
+			sb.WriteString("\n")
+		}
+		if v := reflect.ValueOf(route.GetHandler()); v.Kind() == reflect.Func {
+			sb.WriteString("FirstHandler:")
+			sb.WriteString(runtime.FuncForPC(v.Pointer()).Name())
+			sb.WriteString("\n")
+		}
+		sb.WriteString("---\n")
+		return nil
+	})
+
+	if err != nil {
+		log.Panic().Err(err)
+	} else {
+		fmt.Print(sb.String())
 	}
 }

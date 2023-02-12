@@ -3,9 +3,10 @@ package util
 import (
 	"encoding/base64"
 	"fmt"
-	"log"
 	"net/http"
 	"strconv"
+
+	"github.com/rs/zerolog/log"
 
 	"golang.org/x/crypto/bcrypt"
 )
@@ -29,7 +30,7 @@ func HashPasswordBase64(password string) (string, error) {
 func PasswordMatchesHash(password, base64PasswordHash string) (bool, error) {
 	hash, err := base64.StdEncoding.DecodeString(base64PasswordHash)
 	if err != nil {
-		log.Printf("Invalid base64 encoding for given password-hash: %v", err)
+		log.Error().Err(err).Msg("invalid base64 encoding for given password hash")
 		return false, err
 	}
 	err = bcrypt.CompareHashAndPassword(hash, []byte(password))

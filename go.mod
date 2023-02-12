@@ -4,10 +4,13 @@ go 1.19
 
 require (
 	github.com/99designs/gqlgen v0.17.24
+	github.com/felixge/httpsnoop v1.0.3
 	github.com/golobby/config/v3 v3.4.2
+	github.com/gorilla/mux v1.8.0
 	github.com/mattn/go-sqlite3 v1.14.16
 	github.com/pkg/errors v0.9.1
 	github.com/rs/cors v1.8.3
+	github.com/rs/zerolog v1.29.0
 	github.com/rubenv/sql-migrate v1.3.0
 	github.com/urfave/cli/v2 v2.24.1
 	github.com/vektah/gqlparser/v2 v2.5.1
@@ -29,6 +32,8 @@ require (
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/jinzhu/inflection v1.0.0 // indirect
 	github.com/jinzhu/now v1.1.5 // indirect
+	github.com/mattn/go-colorable v0.1.13 // indirect
+	github.com/mattn/go-isatty v0.0.17 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/russross/blackfriday/v2 v2.1.0 // indirect
 	github.com/xrash/smetrics v0.0.0-20201216005158-039620a65673 // indirect

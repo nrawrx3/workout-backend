@@ -1,6 +1,7 @@
 package main
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"os"
@@ -42,6 +43,7 @@ func main() {
 				Name:  "migrate",
 				Usage: "run migrations",
 				Action: func(c *cli.Context) error {
+					log.Default().SetFlags(0)
 					log.Printf("Running migrations...")
 					var cfg config.Config
 					err := cfg.LoadFromJSONFile(cliFlags.configFile)
@@ -107,7 +109,27 @@ func main() {
 					if err != nil {
 						return err
 					}
-					app.RunServer(cfg)
+					app.Init(cfg)
+					return app.RunServer(cfg)
+				},
+			},
+			{
+				Name:  "routes",
+				Usage: "print routes",
+				Flags: []cli.Flag{&configFlag},
+				Action: func(c *cli.Context) error {
+					cfg := new(config.Config)
+					err := cfg.LoadFromJSONFile(cliFlags.configFile)
+					if err != nil {
+						return err
+					}
+
+					app, err := backend.NewApp(cfg)
+					if err != nil {
+						return err
+					}
+					app.Init(cfg)
+					app.RoutesSummary()
 					return nil
 				},
 			},
@@ -127,7 +149,7 @@ func main() {
 						return err
 					}
 
-					return startGQLPlayground(db)
+					return startGQLPlayground(db, &cfg)
 				},
 			},
 		},
@@ -138,17 +160,12 @@ func main() {
 	}
 }
 
-func startGQLPlayground(db *gorm.DB) error {
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = defaultGQLPlaygroundPort
-	}
-
+func startGQLPlayground(db *gorm.DB, cfg *config.Config) error {
 	srv := handler.NewDefaultServer(graph.NewExecutableSchema(graph.Config{Resolvers: &graph.Resolver{DB: db}}))
 
 	http.Handle("/", playground.Handler("GraphQL playground", "/query"))
 	http.Handle("/query", srv)
 
-	log.Printf("connect to http://localhost:%s/ for GraphQL playground", port)
-	return http.ListenAndServe(":"+port, nil)
+	log.Printf("connect to http://localhost:%d/ for GraphQL playground", cfg.Port)
+	return http.ListenAndServe(fmt.Sprintf("localhost:%d", cfg.Port), nil)
 }

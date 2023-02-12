@@ -2,7 +2,8 @@ package store
 
 import (
 	"database/sql"
-	"log"
+
+	"github.com/rs/zerolog/log"
 
 	_ "github.com/mattn/go-sqlite3"
 	"github.com/nrawrx3/workout-backend/config"
@@ -19,7 +20,7 @@ func OpenSqliteDatabase(sqliteDSN string) (*sql.DB, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to open database at %s", sqliteDSN)
 	}
-	log.Printf("opened database at %s", sqliteDSN)
+	log.Info().Str("dsn", sqliteDSN).Msg("opened database with sql.Open")
 	return db, nil
 }
 
@@ -30,7 +31,7 @@ func OpenGorm(sqliteDSN string) (*gorm.DB, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to create gorm db object")
 	}
-	log.Printf("opened database at %s", sqliteDSN)
+	log.Info().Str("dsn", sqliteDSN).Msg("opened database with gorm.Open")
 	return gormDB, nil
 }
 
@@ -49,7 +50,7 @@ func RunDatabaseMigrations(cfg *config.Config) error {
 		return errors.Wrapf(err, "failed to migrate")
 	}
 
-	log.Printf("applied %d migrations!", n)
+	log.Info().Str("store", "migrations applied!").Int("count", n).Send()
 	return nil
 }
 
@@ -68,6 +69,6 @@ func RunDatabaseRollback(cfg *config.Config) error {
 		return errors.Wrapf(err, "failed to rollback")
 	}
 
-	log.Printf("applied %d rollback(s)!", n)
+	log.Info().Str("store", "rollbacks applied!").Int("count", n).Send()
 	return nil
 }

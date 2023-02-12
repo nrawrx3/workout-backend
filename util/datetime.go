@@ -2,13 +2,18 @@ package util
 
 import (
 	"fmt"
-	"log"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 const Day = 24 * time.Hour
 
+// ISO8601 upto seconds resolution
 const ISO8601Layout = "2006-01-02T15:04:05-07:00"
+
+// ISO8601 upto seconds resolution and without T symbol
+const ISO8601LayoutWithoutT = "2006-01-02 15:04:05-07:00"
 
 func MaxTime(t1 time.Time, t2 time.Time) time.Time {
 	if t1.Before(t2) {
@@ -69,6 +74,7 @@ func ParseDateString(date string, timezone *time.Location) (time.Time, error) {
 	t, err := time.Parse(layout, date)
 	if err != nil {
 		log.Printf("failed to parse date string %s: %s", date, err)
+		log.Error().Err(err).Str("dateString", date).Msg("failed to parse date string")
 		return time.Now(), err
 	}
 	return setTimezone(t, timezone), nil
@@ -79,7 +85,7 @@ func MustParseDateString(date string, timezone *time.Location) time.Time {
 	layout := "2006-01-02"
 	t, err := time.Parse(layout, date)
 	if err != nil {
-		log.Panicf("failed to parse date string %s: %s", date, err)
+		log.Panic().Str("dateStr", date).Err(err).Msg("failed to parse date string")
 		return time.Now()
 	}
 	return setTimezone(t, timezone)
@@ -98,6 +104,7 @@ func TruncateToMonday(day time.Time) time.Time {
 	dayOfWeek := day.Weekday()
 
 	if dayOfWeek == time.Sunday {
+
 		dayOfWeek = 7
 	}
 
