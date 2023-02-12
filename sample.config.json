@@ -4,6 +4,9 @@
     "read_only": false,
     "in_memory": false
   },
+  "logger": {
+    "pretty": true
+  },
   "migrations_path": "./db/migrations/",
   "host": "",
   "port": 8080,

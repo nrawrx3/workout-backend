@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
-	"log"
 	"net/http"
 	"strings"
 	"time"
@@ -13,6 +12,8 @@ import (
 	"github.com/nrawrx3/workout-backend/model"
 	"github.com/nrawrx3/workout-backend/store"
 	"github.com/nrawrx3/workout-backend/util"
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
 
 type SessionChecker struct {
@@ -33,17 +34,17 @@ func (h *SessionChecker) Handler(next http.Handler) http.HandlerFunc {
 
 		sendResponse := func(errorMessage string) {
 			if h.RedirectOnInvalidCookie {
-				log.Printf("redirecting request from %s to /login", r.RemoteAddr)
+				log.Info().Dict("session-checker", zerolog.Dict().Str("remote-address", r.RemoteAddr)).Msg("redirecting to /login")
 				http.Redirect(w, r, constants.LoginPath, http.StatusSeeOther)
 			} else {
-				log.Printf("sending 401 Bad Request response %s because expected session cookie was not received", r.RemoteAddr)
+				log.Info().Dict("session-checker", zerolog.Dict().Str("remote-address", r.RemoteAddr).Str("request-path", r.URL.Path)).Msg("sending 401 Unauthorized")
 
 				responseData := model.UserNotLoggedInErrorResponse
 				responseData.ErrorMessage = errorMessage
 
 				util.AddJsonContentHeader(w, http.StatusUnauthorized)
 				if err := json.NewEncoder(w).Encode(&model.UserNotLoggedInErrorResponse); err != nil {
-					log.Printf("unexpected json encoding error: %v", err)
+					log.Error().Err(err).Msg("unexpected json encoding error")
 				}
 			}
 		}
@@ -61,17 +62,15 @@ func (h *SessionChecker) Handler(next http.Handler) http.HandlerFunc {
 		var cookieValue model.SessionCookieValue
 		err = json.NewDecoder(strings.NewReader(cookieValueRaw)).Decode(&cookieValue)
 		if err != nil {
-			errorMessage = "Invalid cookie data, failed to parse decrypted JSON"
-			log.Printf("Invalid cookie data, failed to parse JSON: %v", err)
-			sendResponse(errorMessage)
+			log.Info().Err(err).Msg("failed to parse JSON")
+			sendResponse("Invalid cookie data, failed to parse decrypted JSON")
 			return
 		}
 
 		uintSessionID, err := util.Uint64FromStringID(cookieValue.SessionID)
 		if err != nil {
-			errorMessage = "Invalid cookie data, failed to parse decrypted JSON"
-			log.Printf("Invalid cookie data, failed to parse JSON: %v", err)
-			sendResponse(errorMessage)
+			log.Info().Err(err).Msg("failed to parse JSON, the SessionID could not be parsed as uint64")
+			sendResponse("Invalid cookie data, failed to parse decrypted JSON")
 			return
 		}
 

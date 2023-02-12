@@ -2,8 +2,9 @@ package util
 
 import (
 	"fmt"
-	"log"
 	"time"
+
+	"github.com/rs/zerolog/log"
 )
 
 const Day = 24 * time.Hour
@@ -69,6 +70,7 @@ func ParseDateString(date string, timezone *time.Location) (time.Time, error) {
 	t, err := time.Parse(layout, date)
 	if err != nil {
 		log.Printf("failed to parse date string %s: %s", date, err)
+		log.Error().Err(err).Str("dateString", date).Msg("failed to parse date string")
 		return time.Now(), err
 	}
 	return setTimezone(t, timezone), nil
@@ -79,7 +81,7 @@ func MustParseDateString(date string, timezone *time.Location) time.Time {
 	layout := "2006-01-02"
 	t, err := time.Parse(layout, date)
 	if err != nil {
-		log.Panicf("failed to parse date string %s: %s", date, err)
+		log.Panic().Str("dateStr", date).Err(err).Msg("failed to parse date string")
 		return time.Now()
 	}
 	return setTimezone(t, timezone)

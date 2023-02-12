@@ -4,8 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"time"
+
+	"github.com/rs/zerolog/log"
 
 	"github.com/nrawrx3/workout-backend/constants"
 	"github.com/nrawrx3/workout-backend/model"
@@ -53,7 +54,7 @@ func (s *UserStore) LoadSession(ctx context.Context, sessionId uint64, timeNow t
 			return session, constants.ErrCodeNotFound
 		}
 
-		log.Printf("error when fetching sessionId %d: %v", sessionId, err)
+		log.Error().Str("store", "error when feteching sessionID").Uint64("sessionID", sessionId).Err(err).Send()
 		return session, err
 	}
 
@@ -61,7 +62,7 @@ func (s *UserStore) LoadSession(ctx context.Context, sessionId uint64, timeNow t
 }
 
 func (s *UserStore) CreateSession(ctx context.Context, userId uint64, timeNow, expiresAt time.Time, userAgent string) (model.UserSession, error) {
-	// log.Printf("CreateSession called")
+	log.Debug().Msg("CreateSession called")
 	session := model.UserSession{
 		UserID: userId,
 	}
@@ -74,18 +75,18 @@ func (s *UserStore) CreateSession(ctx context.Context, userId uint64, timeNow, e
 	err := tx.WithContext(ctx).Preload("User").Where("user_id = ? and expires_at > ? and user_agent = ?", userId, timeNow, userAgent).First(&session).Error
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
-			log.Printf("query error: %v", err)
+			log.Error().Str("store", "query error").Str("store-op", "CreateSession").Err(err)
 			return session, err
 		}
 		err = nil
 	} else {
-		log.Printf("returning existing session (id = %d) for userId (id = %d)", session.ID, session.User.ID)
+		log.Info().Str("store", "returning existing session").Uint64("sessionID", session.ID).Uint64("userID", session.UserID).Str("store-op", "CreateSession").Send()
 		return session, nil
 	}
 
 	err = tx.Model(model.UserSession{}).Where("user_agent = ?", userAgent).Error
 	if err != nil {
-		log.Printf("CreateSession failed to delete sessions for userId %d with same user agent: %v", userId, err)
+		log.Error().Str("store", "failed to delete expired sessions for given userID with given same user agent").Uint64("userID", userId).Err(err).Send()
 		return model.UserSession{}, err
 	}
 
@@ -98,12 +99,12 @@ func (s *UserStore) CreateSession(ctx context.Context, userId uint64, timeNow, e
 
 	err = tx.Create(&session).Error
 	if err != nil {
-		log.Printf("failed to create session in store: %v", err)
+		log.Error().Str("store", "failed to create session in store").Err(err).Str("store-op", "CreateSession").Send()
 		return session, err
 	}
 
 	if err := tx.Commit().Error; err != nil {
-		log.Printf("CreateSession failed to commit: %v", err)
+		log.Error().Str("store", "failed to commit tx").Err(err).Str("store-op", "CreateSession").Send()
 		return session, err
 	}
 	return session, nil

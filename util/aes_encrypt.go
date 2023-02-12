@@ -9,7 +9,8 @@ import (
 	"encoding/json"
 	"errors"
 	"io"
-	"log"
+
+	"github.com/rs/zerolog/log"
 )
 
 // We share AEAD object created across multiple concurrent requests. The Encrypt
@@ -34,7 +35,7 @@ func NewAESCipher(hexKey string) (*AESCipher, error) {
 
 	block, err := aes.NewCipher(key)
 	if err != nil {
-		log.Printf("failed to create cipher: %s", err)
+		log.Error().Err(err).Msg("failed to create cipher")
 		return nil, err
 	}
 
@@ -98,12 +99,12 @@ func (aesCipher *AESCipher) MustEncryptJSON(value interface{}) io.Reader {
 	var b bytes.Buffer
 	err := json.NewEncoder(&b).Encode(value)
 	if err != nil {
-		log.Fatal(err)
+		log.Panic().Err(err)
 	}
 
 	encryptedBytes, err := aesCipher.Encrypt(b.Bytes())
 	if err != nil {
-		log.Fatal(err)
+		log.Panic().Err(err)
 	}
 	return bytes.NewReader(encryptedBytes)
 }
@@ -111,12 +112,12 @@ func (aesCipher *AESCipher) MustEncryptJSON(value interface{}) io.Reader {
 func (aesCipher *AESCipher) MustDecryptJSON(source io.Reader) *json.Decoder {
 	encryptedBytes, err := io.ReadAll(source)
 	if err != nil {
-		log.Fatal(err)
+		log.Panic().Err(err)
 	}
 
 	decryptedBytes, err := aesCipher.Decrypt(encryptedBytes)
 	if err != nil {
-		log.Fatal(err)
+		log.Panic().Err(err)
 	}
 
 	return json.NewDecoder(bytes.NewReader(decryptedBytes))

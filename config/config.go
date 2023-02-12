@@ -11,11 +11,15 @@ import (
 )
 
 type Config struct {
-	Sqlite         SqliteConfig `json:"sqlite"`
-	MigrationsPath string       `json:"migrations_path"`
-	Host           string       `json:"host"`
-	Port           int          `json:"port"`
-	TLSPort        int          `json:"tls_port"`
+	Sqlite SqliteConfig `json:"sqlite"`
+	Logger struct {
+		Pretty bool `json:"pretty"`
+	} `json:"logger"`
+
+	MigrationsPath string `json:"migrations_path"`
+	Host           string `json:"host"`
+	Port           int    `json:"port"`
+	TLSPort        int    `json:"tls_port"`
 
 	Cors struct {
 		AllowedOrigins []string `json:"allowed_origins"`
@@ -27,6 +31,8 @@ type Config struct {
 
 	// For testing purposes. In production, use a SSL reverse proxy instead.
 	UseSelfSignedTLS bool `json:"use_self_signed_tls"`
+
+	UsePrettyLogger bool `json:"use_pretty_logger"`
 }
 
 type SqliteConfig struct {

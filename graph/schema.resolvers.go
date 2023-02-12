@@ -8,7 +8,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"strconv"
 	"time"
@@ -16,6 +15,7 @@ import (
 	"github.com/nrawrx3/workout-backend/graph/model"
 	backend_model "github.com/nrawrx3/workout-backend/model"
 	"github.com/nrawrx3/workout-backend/util"
+	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 )
 
@@ -67,7 +67,7 @@ func (r *mutationResolver) CreateWorkout(ctx context.Context, userID string, kin
 		const query = `select coalesce(max(relative_order), -1) as count from workouts where user_id = ?`
 		err := r.DB.Raw(query, []interface{}{uintUserID}).First(&maxRelativeOrder).Error
 		if err != nil {
-			log.Printf("failed to get max relative_order during create_workout mutation: %v", err)
+			log.Error().Str("gql_resolver", "failed to get max relative_order").Str("mutation", "create_workout").Err(err)
 			return nil, err
 		}
 		workout.Order = maxRelativeOrder.Count + 1
@@ -108,16 +108,15 @@ func (r *mutationResolver) UpdateWorkout(ctx context.Context, workoutID string, 
 
 	res := r.DB.Model(&w).Where("id = ?", []interface{}{id}).Updates(updates)
 	if res.Error != nil {
-		err = fmt.Errorf("failed to update workout with id '%s': %w", workoutID, res.Error)
-		log.Print(err)
-		return nil, err
+		log.Error().Str("gql_resolver", "failed to update workout").Str("workout_id", workoutID).Str("mutation", "update_workout").Msg("query or db error")
+		return nil, fmt.Errorf("failed to update workout with id '%s': %w", workoutID, res.Error)
 	}
 	if res.RowsAffected == 0 {
-		err = fmt.Errorf("failed to update workout with id '%s': no such id", workoutID)
-		log.Print(err)
-		return nil, err
+		log.Error().Str("gql_resolver", "failed to update workout").Str("workout_id", workoutID).Str("mutation", "updated_workout").Msg("due to res.RowsAffected == 0")
+		return nil, fmt.Errorf("failed to update workout with id '%s': no such id", workoutID)
 	}
-	log.Printf("UPDATED workout: %+v", w)
+
+	log.Info().Str("gql_resolver", "updated workout").Str("workput_id", workoutID)
 
 	return &workoutID, nil
 }
@@ -188,10 +187,11 @@ func (r *queryResolver) Workouts(ctx context.Context, userID string) ([]*model.W
 		})
 	}
 
-	log.Printf("sleeping for 3 seconds before sending response")
+	log.Debug().Int("duration(sec)", 3).Str("gql_resolver", "sleeping before sending response").Str("query", "workouts").Msg("simulating delay")
 	<-time.After(3 * time.Second)
 
-	log.Printf("Sending workouts: ...")
+	log.Debug().Str("gql_resolver", "sending workouts result").Str("query", "workouts")
+
 	for _, w := range workouts {
 		fmt.Printf("Kind: %s, Reps: %d\n", w.Kind, w.Reps)
 	}
