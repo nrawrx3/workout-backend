@@ -104,6 +104,8 @@ type ResponseFormatJSON struct {
 	ErrorMessage string      `json:"error_message"`
 }
 
+// Doesn't make sense to send a JSON response in cases of internal server error.
+// What if json.Encode(...) itself fails to write to the response.
 var DefaultInternalServerErrorResponse = ResponseFormatJSON{
 	Data:         nil,
 	ErrorCode:    constants.ResponseErrCodeUnexpectedServerError,

@@ -70,8 +70,7 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 	// Create session
 	session, err := h.userStore.CreateSession(r.Context(), user.ID, time.Now(), h.cookieInfo.Expires, r.Header.Get("User-Agent"))
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		json.NewEncoder(w).Encode(model.DefaultInternalServerErrorResponse)
+		http.Error(w, constants.ResponseErrCodeUnexpectedServerError, http.StatusInternalServerError)
 		return
 	}
 
@@ -91,17 +90,15 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 	cookieValueBuf := bytes.NewBuffer(nil)
 	err = json.NewEncoder(cookieValueBuf).Encode(&cookieValue)
 	if err != nil {
-		log.Error().Str("/login", "failed to JSON encode cookie value").Err(err).Send()
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("failed to encode cookie :|"))
+		log.Error().Str("path", "/login").Err(err).Msg("failed to JSON encode cookie value")
+		http.Error(w, "failed to JSON encode cookie :|", http.StatusInternalServerError)
 		return
 	}
 
 	err = util.EncryptThenEncodeB64ThenWriteCookie(w, cookie, h.cipher, cookieValueBuf.Bytes())
 	if err != nil {
-		log.Error().Str("/login", "failed to write cookie").Err(err).Send()
-		w.WriteHeader(http.StatusInternalServerError)
-		w.Write([]byte("fauled to encrypt cookie :|"))
+		log.Error().Str("path", "/login").Err(err).Msg("failed to write cookie")
+		http.Error(w, "failed to encrypt cookie :|", http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusOK)
@@ -122,7 +119,7 @@ func (h *LoginHandler) AmILoggedIn(w http.ResponseWriter, r *http.Request) {
 
 	sessionId, err := util.ExtractSessionIDFromCookie(r, h.cookieInfo.CookieName, h.cipher)
 	if err != nil {
-		log.Info().Err(err).Str("/am-i-logged-in", "could not extract sessionID from cookie").Send()
+		log.Info().Err(err).Str("path", "/am-i-logged-in").Msg("could not extract sessionID from cookie")
 		response.ErrorCode = constants.ResponseErrCodeUserNotLoggedIn
 	} else {
 		session, err := h.userStore.LoadSession(r.Context(), sessionId, time.Now())
@@ -140,7 +137,7 @@ func (h *LoginHandler) AmILoggedIn(w http.ResponseWriter, r *http.Request) {
 	util.AddJsonContentHeader(w, 0)
 	err = json.NewEncoder(w).Encode(&response)
 	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
+		http.Error(w, "failed to encode response json", http.StatusInternalServerError)
 		log.Info().Str("/am-i-logged-in", "failed to encode response json").Err(err).Send()
 		return
 	}

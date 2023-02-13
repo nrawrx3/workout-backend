@@ -68,6 +68,7 @@ func (app *App) Init(cfg *config.Config) error {
 	// Router
 	router := mux.NewRouter()
 	router.Use(middleware.Logger)
+	router.Use(middleware.Recover)
 
 	// Cipher we use for cookies
 	aesCipher, err := util.NewAESCipher(cfg.CookieSecretKey)
