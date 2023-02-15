@@ -1,6 +1,6 @@
 package model
 
-import backend_model "github.com/nrawrx3/workout-backend/model"
+import backend_model "github.com/nrawrx3/uno-backend/model"
 
 func (w WorkoutKind) CastToModelKind() backend_model.WorkoutKind {
 	switch w {

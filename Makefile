@@ -1,4 +1,4 @@
-APP=workout-backend
+APP=uno-backend
 APP_EXECUTABLE="./out/${APP}"
 
 ALL_PACKAGES=$(shell go list ./... | grep -v "vendor" | grep -v "cmd/scripts/")

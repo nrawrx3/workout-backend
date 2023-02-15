@@ -8,8 +8,8 @@ import (
 
 	"github.com/rs/zerolog/log"
 
-	"github.com/nrawrx3/workout-backend/constants"
-	"github.com/nrawrx3/workout-backend/model"
+	"github.com/nrawrx3/uno-backend/constants"
+	"github.com/nrawrx3/uno-backend/model"
 	"gorm.io/gorm"
 )
 

@@ -11,9 +11,9 @@ import (
 	"os"
 	"strconv"
 
-	"github.com/nrawrx3/workout-backend/graph/model"
-	backend_model "github.com/nrawrx3/workout-backend/model"
-	"github.com/nrawrx3/workout-backend/util"
+	"github.com/nrawrx3/uno-backend/graph/model"
+	backend_model "github.com/nrawrx3/uno-backend/model"
+	"github.com/nrawrx3/uno-backend/util"
 	"github.com/rs/zerolog/log"
 	"gorm.io/gorm"
 )

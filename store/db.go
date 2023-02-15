@@ -6,7 +6,7 @@ import (
 	"github.com/rs/zerolog/log"
 
 	_ "github.com/mattn/go-sqlite3"
-	"github.com/nrawrx3/workout-backend/config"
+	"github.com/nrawrx3/uno-backend/config"
 	"github.com/pkg/errors"
 	migrate "github.com/rubenv/sql-migrate"
 

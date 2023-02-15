@@ -8,8 +8,8 @@ import (
 	"net/http"
 	"strings"
 
-	"github.com/nrawrx3/workout-backend/constants"
-	"github.com/nrawrx3/workout-backend/model"
+	"github.com/nrawrx3/uno-backend/constants"
+	"github.com/nrawrx3/uno-backend/model"
 )
 
 func EncodeB64ThenWriteCookie(w http.ResponseWriter, cookie http.Cookie, value []byte) error {

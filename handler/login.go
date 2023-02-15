@@ -8,10 +8,10 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nrawrx3/workout-backend/constants"
-	"github.com/nrawrx3/workout-backend/model"
-	"github.com/nrawrx3/workout-backend/store"
-	"github.com/nrawrx3/workout-backend/util"
+	"github.com/nrawrx3/uno-backend/constants"
+	"github.com/nrawrx3/uno-backend/model"
+	"github.com/nrawrx3/uno-backend/store"
+	"github.com/nrawrx3/uno-backend/util"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 )

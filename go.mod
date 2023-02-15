@@ -1,4 +1,4 @@
-module github.com/nrawrx3/workout-backend
+module github.com/nrawrx3/uno-backend
 
 go 1.19
 

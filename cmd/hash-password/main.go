@@ -5,7 +5,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/nrawrx3/workout-backend/util"
+	"github.com/nrawrx3/uno-backend/util"
 	"github.com/urfave/cli/v2"
 )
 

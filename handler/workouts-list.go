@@ -5,9 +5,9 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/nrawrx3/workout-backend/model"
-	"github.com/nrawrx3/workout-backend/store"
-	"github.com/nrawrx3/workout-backend/util"
+	"github.com/nrawrx3/uno-backend/model"
+	"github.com/nrawrx3/uno-backend/store"
+	"github.com/nrawrx3/uno-backend/util"
 )
 
 type WorkoutsListHandler struct {

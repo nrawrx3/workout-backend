@@ -1,8 +1,8 @@
 package backend
 
 import (
-	"github.com/nrawrx3/workout-backend/model"
-	"github.com/nrawrx3/workout-backend/util"
+	"github.com/nrawrx3/uno-backend/model"
+	"github.com/nrawrx3/uno-backend/util"
 	"github.com/pkg/errors"
 	"gorm.io/gorm"
 )

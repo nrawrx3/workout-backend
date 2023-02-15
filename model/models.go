@@ -5,7 +5,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/nrawrx3/workout-backend/constants"
+	"github.com/nrawrx3/uno-backend/constants"
 	"gorm.io/gorm"
 )
 

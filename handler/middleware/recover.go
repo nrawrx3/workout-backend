@@ -4,7 +4,7 @@ import (
 	"errors"
 	"net/http"
 
-	"github.com/nrawrx3/workout-backend/constants"
+	"github.com/nrawrx3/uno-backend/constants"
 	"github.com/rs/zerolog/log"
 )
 

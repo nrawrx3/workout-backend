@@ -11,10 +11,10 @@ import (
 	cli "github.com/urfave/cli/v2"
 	"gorm.io/gorm"
 
-	backend "github.com/nrawrx3/workout-backend"
-	"github.com/nrawrx3/workout-backend/config"
-	"github.com/nrawrx3/workout-backend/graph"
-	"github.com/nrawrx3/workout-backend/store"
+	backend "github.com/nrawrx3/uno-backend"
+	"github.com/nrawrx3/uno-backend/config"
+	"github.com/nrawrx3/uno-backend/graph"
+	"github.com/nrawrx3/uno-backend/store"
 )
 
 const defaultGQLPlaygroundPort = "8080"
