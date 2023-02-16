@@ -195,7 +195,7 @@ func (app *App) RunServer(cfg *config.Config) error {
 func (app *App) RoutesSummary() {
 	var sb strings.Builder
 
-	err := app.Router.Walk(func(route *mux.Route, router *mux.Router, ancestors []*mux.Route) error {
+	err := app.Router.Walk(func(route *mux.Route, _ *mux.Router, _ []*mux.Route) error {
 		pathTemplate, err := route.GetPathTemplate()
 		if err == nil {
 			sb.WriteString(pathTemplate)

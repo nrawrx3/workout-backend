@@ -95,7 +95,7 @@ func (h *LoginHandler) Login(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	err = util.EncryptThenEncodeB64ThenWriteCookie(w, cookie, h.cipher, cookieValueBuf.Bytes())
+	err = model.EncryptThenEncodeB64ThenWriteCookie(w, cookie, h.cipher, cookieValueBuf.Bytes())
 	if err != nil {
 		log.Error().Str("path", "/login").Err(err).Msg("failed to write cookie")
 		http.Error(w, "failed to encrypt cookie :|", http.StatusInternalServerError)
@@ -117,7 +117,7 @@ func (h *LoginHandler) AmILoggedIn(w http.ResponseWriter, r *http.Request) {
 
 	response := model.ResponseFormatJSON{}
 
-	sessionId, err := util.ExtractSessionIDFromCookie(r, h.cookieInfo.CookieName, h.cipher)
+	sessionId, err := model.ExtractSessionIDFromCookie(r, h.cookieInfo.CookieName, h.cipher)
 	if err != nil {
 		log.Info().Err(err).Str("path", "/am-i-logged-in").Msg("could not extract sessionID from cookie")
 		response.ErrorCode = constants.ResponseErrCodeUserNotLoggedIn

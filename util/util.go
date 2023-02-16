@@ -3,6 +3,7 @@ package util
 import (
 	"encoding/base64"
 	"fmt"
+	"math/rand"
 	"net/http"
 	"strconv"
 
@@ -42,4 +43,25 @@ func AddJsonContentHeader(w http.ResponseWriter, status int) {
 		w.WriteHeader(status)
 	}
 	w.Header().Add("Content-Type", "application/json")
+}
+
+func ShuffleIntRange(start, end int) []int {
+	if end < start {
+		panic(fmt.Errorf("end > start (%d > %d)", end, start))
+	}
+
+	count := end - start
+
+	slice := make([]int, count)
+
+	for i := 0; i < count; i++ {
+		slice[i] = i
+	}
+
+	for end := len(slice); end > 0; end-- {
+		randomIndex := rand.Intn(end)
+		slice[randomIndex], slice[end-1] = slice[end-1], slice[randomIndex]
+	}
+
+	return slice
 }

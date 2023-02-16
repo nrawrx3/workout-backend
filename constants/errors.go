@@ -8,4 +8,5 @@ var (
 	ErrCodeMaxSizeExceeded = errors.New("err_max_size_exceeded")
 	ErrCodeInvalidValue    = errors.New("err_invalid_value")
 	ErrCodeUnknown         = errors.New("err_unknown")
+	ErrShouldNotHappen     = errors.New("err_should_not_happen")
 )

@@ -30,7 +30,7 @@ func NewSessionChecker(userStore *store.UserStore, sessionInfo model.SessionCook
 func (h *SessionChecker) Handler(next http.Handler) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Fetch cookie value
-		cookieValueRaw, err := util.ReadCookieDecodeB64ThenDecrypt(r, h.sessionInfo.CookieName, h.cipher)
+		cookieValueRaw, err := model.ReadCookieDecodeB64ThenDecrypt(r, h.sessionInfo.CookieName, h.cipher)
 
 		sendResponse := func(errorMessage string) {
 			if h.RedirectOnInvalidCookie {
